@@ -4,7 +4,7 @@ import { Send, FileText, Loader2, LogOut } from 'lucide-react';
 import { supabase } from './supabaseClient';
 import type { Session } from '@supabase/supabase-js';
 
-const API_BASE = 'http://localhost:8787';
+const API_BASE = 'https://api.aledside.workers.dev';
 
 interface Note {
     id: string;
