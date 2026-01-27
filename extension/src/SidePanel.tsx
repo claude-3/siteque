@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
-import { Send, FileText, Loader2 } from 'lucide-react';
+import { Send, FileText, Loader2, LogOut } from 'lucide-react';
+import { supabase } from './supabaseClient';
+import type { Session } from '@supabase/supabase-js';
 
 const API_BASE = 'http://localhost:8787';
 
@@ -16,6 +18,89 @@ interface TabChangeInfo {
 }
 
 export default function SidePanel() {
+    const [session, setSession] = useState<Session | null>(null);
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+    const [authLoading, setAuthLoading] = useState(false);
+    const [authError, setAuthError] = useState<string | null>(null);
+
+    useEffect(() => {
+        supabase.auth.getSession().then(({ data: { session } }) => {
+            setSession(session);
+        });
+
+        const {
+            data: { subscription },
+        } = supabase.auth.onAuthStateChange((_event, session) => {
+            setSession(session);
+        });
+
+        return () => subscription.unsubscribe();
+    }, []);
+
+    const handleLogin = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setAuthLoading(true);
+        setAuthError(null);
+        const { error } = await supabase.auth.signInWithPassword({
+            email,
+            password,
+        });
+        if (error) setAuthError(error.message);
+        setAuthLoading(false);
+    };
+
+    const handleLogout = async () => {
+        await supabase.auth.signOut();
+    };
+
+    if (!session) {
+        return (
+            <div className="w-full h-screen bg-gray-50 flex flex-col items-center justify-center p-6 font-sans">
+                <div className="w-full max-w-xs bg-white p-6 rounded-lg shadow-md border border-gray-200">
+                    <h1 className="text-xl font-bold text-center mb-6 text-gray-800">SiteCue Login</h1>
+                    {authError && <div className="text-red-500 text-xs mb-4 text-center">{authError}</div>}
+                    <form onSubmit={handleLogin} className="space-y-4">
+                        <div>
+                            <label className="block text-xs font-medium text-gray-700 mb-1">Email</label>
+                            <input
+                                type="email"
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
+                                required
+                                className="w-full border border-gray-300 rounded p-2 text-sm focus:outline-none focus:ring-1 focus:ring-black"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-xs font-medium text-gray-700 mb-1">Password</label>
+                            <input
+                                type="password"
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                required
+                                className="w-full border border-gray-300 rounded p-2 text-sm focus:outline-none focus:ring-1 focus:ring-black"
+                            />
+                        </div>
+                        <button
+                            type="submit"
+                            disabled={authLoading}
+                            className="w-full bg-black text-white py-2 rounded text-sm hover:bg-gray-800 transition-colors disabled:opacity-50"
+                        >
+                            {authLoading ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : 'Sign In'}
+                        </button>
+                    </form>
+                    <p className="mt-4 text-xs text-center text-gray-500">
+                        Don't have an account? Sign up on the web dashboard.
+                    </p>
+                </div>
+            </div>
+        );
+    }
+
+    return <NotesUI session={session} onLogout={handleLogout} />;
+}
+
+function NotesUI({ session, onLogout }: { session: Session; onLogout: () => void }) {
     const [url, setUrl] = useState<string>('');
     const [notes, setNotes] = useState<Note[]>([]);
     const [loading, setLoading] = useState(false);
@@ -23,13 +108,8 @@ export default function SidePanel() {
     const [submitting, setSubmitting] = useState(false);
 
     useEffect(() => {
-        // Get current tab URL
         chrome.tabs.query({ active: true, currentWindow: true }, (tabs: chrome.tabs.Tab[]) => {
             if (tabs[0]?.url) {
-                // Simple domain/host extraction or full URL? 
-                // User said "url query param... Search sitecue_notes where url_pattern matches"
-                // Let's use the hostname for MVP matching or full URL if specific.
-                // For MVP, passing the Hostname seems safer for matching "sites".
                 try {
                     const u = new URL(tabs[0].url);
                     setUrl(u.hostname);
@@ -39,7 +119,6 @@ export default function SidePanel() {
             }
         });
 
-        // Listen for tab updates
         const listener = (_tabId: number, changeInfo: TabChangeInfo, tab: chrome.tabs.Tab) => {
             if (tab.active && changeInfo.url) {
                 try {
@@ -62,7 +141,12 @@ export default function SidePanel() {
     const fetchNotes = async () => {
         setLoading(true);
         try {
-            const res = await axios.get(`${API_BASE}/notes`, { params: { url } });
+            const res = await axios.get(`${API_BASE}/notes`, {
+                params: { url },
+                headers: {
+                    Authorization: `Bearer ${session.access_token}`
+                }
+            });
             setNotes(res.data);
         } catch (error) {
             console.error('Failed to fetch notes', error);
@@ -80,9 +164,13 @@ export default function SidePanel() {
             await axios.post(`${API_BASE}/notes`, {
                 url_pattern: url,
                 content: newNote
+            }, {
+                headers: {
+                    Authorization: `Bearer ${session.access_token}`
+                }
             });
             setNewNote('');
-            fetchNotes(); // Refresh list
+            fetchNotes();
         } catch (error) {
             console.error('Failed to create note', error);
         } finally {
@@ -92,12 +180,17 @@ export default function SidePanel() {
 
     return (
         <div className="w-full h-screen bg-gray-50 flex flex-col font-sans">
-            <div className="p-4 bg-white border-b border-gray-200 shadow-sm sticky top-0 z-10">
-                <h1 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                    SiteCue
-                </h1>
-                <p className="text-xs text-gray-500 truncate" title={url}>Context: {url || 'Waiting...'}</p>
+            <div className="p-4 bg-white border-b border-gray-200 shadow-sm sticky top-0 z-10 flex justify-between items-center">
+                <div>
+                    <h1 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+                        <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                        SiteCue
+                    </h1>
+                    <p className="text-xs text-gray-500 truncate max-w-[150px]" title={url}>{url || 'Waiting...'}</p>
+                </div>
+                <button onClick={onLogout} className="text-gray-400 hover:text-black">
+                    <LogOut className="w-4 h-4" />
+                </button>
             </div>
 
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
