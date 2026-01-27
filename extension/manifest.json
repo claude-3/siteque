@@ -1,21 +1,24 @@
 {
     "manifest_version": 3,
     "name": "SiteCue",
-    "version": "0.1.0",
-    "description": "Context-Aware Layer Extension",
-    "permissions": [
-        "activeTab",
-        "storage"
-    ],
-    "background": {
-        "service_worker": "background.js"
-    },
+    "version": "1.0.0",
     "action": {
-        "default_title": "SiteCue"
+        "default_title": "Open SiteCue"
     },
-    "icons": {
-        "16": "icons/icon16.png",
-        "48": "icons/icon48.png",
-        "128": "icons/icon128.png"
-    }
+    "background": {
+        "service_worker": "src/background.ts",
+        "type": "module"
+    },
+    "side_panel": {
+        "default_path": "sidepanel.html"
+    },
+    "permissions": [
+        "sidePanel",
+        "activeTab",
+        "storage",
+        "tabs"
+    ],
+    "host_permissions": [
+        "http://localhost:8787/*"
+    ]
 }

@@ -39,3 +39,8 @@ next-env.d.ts
 !.vscode/extensions.json
 !.vscode/settings.json
 .idea/
+
+# --- Extension (Vite) ---
+dist/
+.vite/
+*.local
