@@ -17,6 +17,9 @@ bun.debug.log*
 .env*.local
 .env.local
 .env.*
+# example ファイルだけは例外として許可する
+!.env.example
+!.env*.example
 
 # --- Web (Next.js) ---
 .next/
