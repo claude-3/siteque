@@ -19,6 +19,8 @@
         "tabs"
     ],
     "host_permissions": [
-        "https://sitecue-api.aledside.workers.dev/*"
+        "https://sitecue-api.aledside.workers.dev/*",
+        "http://localhost:8787/*",
+        "http://127.0.0.1:54321/*"
     ]
 }
