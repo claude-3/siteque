@@ -19,6 +19,6 @@
         "tabs"
     ],
     "host_permissions": [
-        "https://api.aledside.workers.dev/*"
+        "https://sitecue-api.aledside.workers.dev/*"
     ]
 }
