@@ -94,4 +94,42 @@ app.post('/notes', async (c) => {
   }
 })
 
+// ---------------------------------------------------------
+// 📝 メモの更新 (UPDATE)
+// ---------------------------------------------------------
+app.put('/notes', async (c) => {
+  try {
+    const { id, content } = await c.req.json()
+
+    // IDがないと更新できないので弾く
+    if (!id) {
+      return c.json({ error: 'Note ID is required' }, 400)
+    }
+
+    // 既存のGET/POSTと同じようにクライアントを作成 (RLSを有効にするため)
+    const supabase = createClient(c.env.SUPABASE_URL, c.env.SUPABASE_ANON_KEY, {
+      global: { headers: { Authorization: c.req.header('Authorization')! } },
+    })
+
+    // 更新実行
+    // .select() を付けることで、更新後のデータを取得できます
+    const { data, error } = await supabase
+      .from('sitecue_notes')
+      .update({ content })
+      .eq('id', id)
+      .select()
+
+    if (error) return c.json({ error: error.message }, 500)
+
+    // 更新対象が見つからなかった場合 (他人のメモIDを指定した場合など)
+    if (!data || data.length === 0) {
+      return c.json({ error: 'Note not found or permission denied' }, 404)
+    }
+
+    return c.json(data[0])
+  } catch (err) {
+    return c.json({ error: 'Invalid JSON body' }, 400)
+  }
+})
+
 export default app

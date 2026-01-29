@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
-import { Send, FileText, Loader2, LogOut } from 'lucide-react';
+import { Send, FileText, Loader2, LogOut, Pencil, X, Check } from 'lucide-react'; // アイコン追加
 import { supabase } from './supabaseClient';
 import type { Session } from '@supabase/supabase-js';
+import { getCurrentUrl } from './utils/url'; // 👈 先ほど作ったファイルをインポート
 
 const API_BASE = import.meta.env.VITE_API_URL;
 
@@ -107,30 +108,41 @@ function NotesUI({ session, onLogout }: { session: Session; onLogout: () => void
     const [newNote, setNewNote] = useState('');
     const [submitting, setSubmitting] = useState(false);
 
-    useEffect(() => {
-        chrome.tabs.query({ active: true, currentWindow: true }, (tabs: chrome.tabs.Tab[]) => {
-            if (tabs[0]?.url) {
-                try {
-                    const u = new URL(tabs[0].url);
-                    setUrl(u.hostname);
-                } catch (e) {
-                    setUrl(tabs[0].url);
-                }
-            }
-        });
+    // ✏️ 編集用のステート
+    const [editingId, setEditingId] = useState<string | null>(null);
+    const [editContent, setEditContent] = useState('');
+    const [updating, setUpdating] = useState(false);
 
-        const listener = (_tabId: number, changeInfo: TabChangeInfo, tab: chrome.tabs.Tab) => {
-            if (tab.active && changeInfo.url) {
+    // ✅ 安全なURL取得 (修正済み)
+    useEffect(() => {
+        const initUrl = async () => {
+            const currentUrl = await getCurrentUrl();
+            if (currentUrl) {
                 try {
-                    const u = new URL(changeInfo.url);
+                    const u = new URL(currentUrl);
                     setUrl(u.hostname);
                 } catch (e) {
-                    setUrl(changeInfo.url);
+                    setUrl(currentUrl);
                 }
             }
         };
-        chrome.tabs.onUpdated.addListener(listener);
-        return () => chrome.tabs.onUpdated.removeListener(listener);
+        initUrl();
+
+        // Chrome拡張の時だけリスナーを登録
+        if (typeof chrome !== 'undefined' && chrome.tabs && chrome.tabs.onUpdated) {
+            const listener = (_tabId: number, changeInfo: TabChangeInfo, tab: chrome.tabs.Tab) => {
+                if (tab.active && changeInfo.url) {
+                    try {
+                        const u = new URL(changeInfo.url);
+                        setUrl(u.hostname);
+                    } catch (e) {
+                        setUrl(changeInfo.url);
+                    }
+                }
+            };
+            chrome.tabs.onUpdated.addListener(listener);
+            return () => chrome.tabs.onUpdated.removeListener(listener);
+        }
     }, []);
 
     useEffect(() => {
@@ -178,6 +190,43 @@ function NotesUI({ session, onLogout }: { session: Session; onLogout: () => void
         }
     };
 
+    // ✏️ 編集モード開始
+    const startEditing = (note: Note) => {
+        setEditingId(note.id);
+        setEditContent(note.content);
+    };
+
+    // ❌ 編集キャンセル
+    const cancelEditing = () => {
+        setEditingId(null);
+        setEditContent('');
+    };
+
+    // 💾 更新実行 (PUT)
+    const handleUpdate = async (id: string) => {
+        if (!editContent.trim()) return;
+        setUpdating(true);
+        try {
+            await axios.put(`${API_BASE}/notes`, {
+                id: id,
+                content: editContent
+            }, {
+                headers: {
+                    Authorization: `Bearer ${session.access_token}`
+                }
+            });
+
+            // ローカルのメモ一覧も更新（再取得しなくても画面に反映させる）
+            setNotes(notes.map(n => n.id === id ? { ...n, content: editContent } : n));
+            setEditingId(null);
+        } catch (error) {
+            console.error('Failed to update note', error);
+            alert('Failed to update note');
+        } finally {
+            setUpdating(false);
+        }
+    };
+
     return (
         <div className="w-full h-screen bg-gray-50 flex flex-col font-sans">
             <div className="p-4 bg-white border-b border-gray-200 shadow-sm sticky top-0 z-10 flex justify-between items-center">
@@ -205,11 +254,49 @@ function NotesUI({ session, onLogout }: { session: Session; onLogout: () => void
                     </div>
                 ) : (
                     notes.map((note) => (
-                        <div key={note.id} className="bg-white p-3 rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
-                            <div className="text-sm text-gray-800 whitespace-pre-wrap">{note.content}</div>
-                            <div className="text-[10px] text-gray-400 mt-2 text-right">
-                                {new Date(note.created_at).toLocaleDateString()}
-                            </div>
+                        <div key={note.id} className="bg-white p-3 rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow group relative">
+                            {editingId === note.id ? (
+                                // ✏️ 編集モード
+                                <div className="space-y-2">
+                                    <textarea
+                                        value={editContent}
+                                        onChange={(e) => setEditContent(e.target.value)}
+                                        className="w-full border border-gray-300 rounded p-2 text-sm focus:outline-none focus:ring-2 focus:ring-black/5 min-h-[60px]"
+                                        autoFocus
+                                    />
+                                    <div className="flex justify-end gap-2">
+                                        <button
+                                            onClick={cancelEditing}
+                                            className="p-1 text-gray-400 hover:text-gray-600 rounded"
+                                        >
+                                            <X className="w-4 h-4" />
+                                        </button>
+                                        <button
+                                            onClick={() => handleUpdate(note.id)}
+                                            disabled={updating}
+                                            className="p-1 bg-black text-white rounded hover:bg-gray-800 disabled:opacity-50"
+                                        >
+                                            {updating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                                        </button>
+                                    </div>
+                                </div>
+                            ) : (
+                                // 👀 表示モード
+                                <>
+                                    <div className="text-sm text-gray-800 whitespace-pre-wrap pr-6">{note.content}</div>
+                                    <div className="text-[10px] text-gray-400 mt-2 text-right">
+                                        {new Date(note.created_at).toLocaleDateString()}
+                                    </div>
+
+                                    {/* 編集ボタン (ホバー時に出現) */}
+                                    <button
+                                        onClick={() => startEditing(note)}
+                                        className="absolute top-2 right-2 p-1.5 text-gray-400 hover:text-black hover:bg-gray-100 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                                    >
+                                        <Pencil className="w-3.5 h-3.5" />
+                                    </button>
+                                </>
+                            )}
                         </div>
                     ))
                 )}
