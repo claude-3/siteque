@@ -1,0 +1,18 @@
+{
+  "name": "sitecue",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "concurrently \"cd web && bun run dev\" \"cd extension && bun run dev\" \"cd api && bun run dev\"",
+    "db:start": "bun x supabase start",
+    "db:stop": "bun x supabase stop",
+    "stop": "bun x supabase stop"
+  },
+  "workspaces": [
+    "web",
+    "api",
+    "extension"
+  ],
+  "dependencies": {
+    "concurrently": "^9.2.1"
+  }
+}
