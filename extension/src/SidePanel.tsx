@@ -3,7 +3,7 @@ import axios from 'axios';
 import { Send, FileText, Loader2, LogOut, Pencil, X, Check, Trash2 } from 'lucide-react'; // アイコン追加
 import { supabase } from './supabaseClient';
 import type { Session } from '@supabase/supabase-js';
-import { getCurrentUrl } from './utils/url'; // 👈 先ほど作ったファイルをインポート
+import { getCurrentUrl, getScopeUrls } from './utils/url'; // 👈 先ほど作ったファイルをインポート
 
 const API_BASE = import.meta.env.VITE_API_URL;
 
@@ -11,8 +11,12 @@ interface Note {
     id: string;
     content: string;
     url_pattern: string;
+    scope: 'domain' | 'exact';
     created_at: string;
 }
+
+// 🌐 スコープ選択用の型
+type ScopeType = 'domain' | 'exact';
 
 interface TabChangeInfo {
     url?: string;
@@ -113,17 +117,18 @@ function NotesUI({ session, onLogout }: { session: Session; onLogout: () => void
     const [editContent, setEditContent] = useState('');
     const [updating, setUpdating] = useState(false);
 
+    // 🌐 スコープ管理
+    const [currentFullUrl, setCurrentFullUrl] = useState<string>('');
+    const [selectedScope, setSelectedScope] = useState<ScopeType>('domain');
+
     // ✅ 安全なURL取得 (修正済み)
     useEffect(() => {
         const initUrl = async () => {
             const currentUrl = await getCurrentUrl();
             if (currentUrl) {
-                try {
-                    const u = new URL(currentUrl);
-                    setUrl(u.hostname);
-                } catch (e) {
-                    setUrl(currentUrl);
-                }
+                setCurrentFullUrl(currentUrl);
+                const scopeUrls = getScopeUrls(currentUrl);
+                setUrl(scopeUrls.domain); // デフォルト表示用にドメインをセット
             }
         };
         initUrl();
@@ -132,12 +137,9 @@ function NotesUI({ session, onLogout }: { session: Session; onLogout: () => void
         if (typeof chrome !== 'undefined' && chrome.tabs && chrome.tabs.onUpdated) {
             const listener = (_tabId: number, changeInfo: TabChangeInfo, tab: chrome.tabs.Tab) => {
                 if (tab.active && changeInfo.url) {
-                    try {
-                        const u = new URL(changeInfo.url);
-                        setUrl(u.hostname);
-                    } catch (e) {
-                        setUrl(changeInfo.url);
-                    }
+                    setCurrentFullUrl(changeInfo.url);
+                    const scopeUrls = getScopeUrls(changeInfo.url);
+                    setUrl(scopeUrls.domain);
                 }
             };
             chrome.tabs.onUpdated.addListener(listener);
@@ -146,20 +148,34 @@ function NotesUI({ session, onLogout }: { session: Session; onLogout: () => void
     }, []);
 
     useEffect(() => {
-        if (!url) return;
+        if (!currentFullUrl) return;
         fetchNotes();
-    }, [url]);
+    }, [currentFullUrl]); // URL全体が変わったら再取得
 
     const fetchNotes = async () => {
         setLoading(true);
         try {
-            const res = await axios.get(`${API_BASE}/notes`, {
-                params: { url },
-                headers: {
-                    Authorization: `Bearer ${session.access_token}`
-                }
+            const scopeUrls = getScopeUrls(currentFullUrl);
+
+            // domainとexactの両方のノートを取得
+            // or条件で取得: (url_pattern = domain AND scope = domain) OR (url_pattern = exact AND scope = exact)
+            // SQL injection is not possible here as library handles escaping, but logic-wise:
+            // .or(`and(url_pattern.eq.${scopeUrls.domain},scope.eq.domain),and(url_pattern.eq.${scopeUrls.exact},scope.eq.exact)`)
+
+            const { data, error } = await supabase
+                .from('sitecue_notes')
+                .select('*')
+                .or(`and(url_pattern.eq.${scopeUrls.domain},scope.eq.domain),and(url_pattern.eq.${scopeUrls.exact},scope.eq.exact)`);
+
+            if (error) throw error;
+
+            // ソート: exact -> domain の順
+            const sortedNotes = (data || []).sort((a: Note, b: Note) => {
+                if (a.scope === b.scope) return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+                return a.scope === 'exact' ? -1 : 1;
             });
-            setNotes(res.data);
+
+            setNotes(sortedNotes);
         } catch (error) {
             console.error('Failed to fetch notes', error);
         } finally {
@@ -173,10 +189,20 @@ function NotesUI({ session, onLogout }: { session: Session; onLogout: () => void
 
         setSubmitting(true);
         try {
-            await axios.post(`${API_BASE}/notes`, {
-                url_pattern: url,
-                content: newNote
-            }, {
+            const scopeUrls = getScopeUrls(currentFullUrl);
+            // domain選択時はnormalized domain, exact選択時はnormalized exact urlを使用
+            // getScopeUrlsはすでにnormalizeUrlを使っているが、明示的に選択する
+            const targetUrlPattern = selectedScope === 'domain' ? scopeUrls.domain : scopeUrls.exact;
+
+            const payload = {
+                url_pattern: targetUrlPattern,
+                content: newNote,
+                scope: selectedScope
+            };
+
+            console.log(`Saving note with:`, payload);
+
+            await axios.post(`${API_BASE}/notes`, payload, {
                 headers: {
                     Authorization: `Bearer ${session.access_token}`
                 }
@@ -304,8 +330,11 @@ function NotesUI({ session, onLogout }: { session: Session; onLogout: () => void
                                 // 👀 表示モード
                                 <>
                                     <div className="text-sm text-gray-800 whitespace-pre-wrap pr-6">{note.content}</div>
-                                    <div className="text-[10px] text-gray-400 mt-2 text-right">
-                                        {new Date(note.created_at).toLocaleDateString()}
+                                    <div className="text-[10px] text-gray-400 mt-2 flex justify-between items-center">
+                                        <span className={`px-1.5 py-0.5 rounded ${note.scope === 'exact' ? 'bg-blue-50 text-blue-600' : 'bg-gray-100 text-gray-500'}`}>
+                                            {note.scope === 'exact' ? 'Page' : 'Domain'}
+                                        </span>
+                                        <span>{new Date(note.created_at).toLocaleDateString()}</span>
                                     </div>
 
                                     {/* アクションボタン (ホバー時に出現) */}
@@ -332,12 +361,36 @@ function NotesUI({ session, onLogout }: { session: Session; onLogout: () => void
                 )}
             </div>
 
-            <div className="p-4 bg-white border-t border-gray-200">
+            <div className="p-4 bg-white border-t border-gray-200 space-y-3">
+                {/* スコープ選択 */}
+                <div className="flex items-center gap-4 text-xs">
+                    <label className="flex items-center gap-1.5 cursor-pointer text-gray-600 hover:text-black">
+                        <input
+                            type="radio"
+                            name="scope"
+                            checked={selectedScope === 'domain'}
+                            onChange={() => setSelectedScope('domain')}
+                            className="text-black focus:ring-black"
+                        />
+                        <span>Domain</span>
+                    </label>
+                    <label className="flex items-center gap-1.5 cursor-pointer text-gray-600 hover:text-black">
+                        <input
+                            type="radio"
+                            name="scope"
+                            checked={selectedScope === 'exact'}
+                            onChange={() => setSelectedScope('exact')}
+                            className="text-black focus:ring-black"
+                        />
+                        <span>This Page</span>
+                    </label>
+                </div>
+
                 <form onSubmit={handleSubmit} className="flex gap-2">
                     <textarea
                         value={newNote}
                         onChange={(e) => setNewNote(e.target.value)}
-                        placeholder="Add a cue..."
+                        placeholder={`Add a cue to ${selectedScope === 'domain' ? 'this domain' : 'this page'}...`}
                         className="flex-1 resize-none border border-gray-200 rounded-md p-2 text-sm focus:outline-none focus:ring-2 focus:ring-black/5 min-h-[40px] max-h-[100px]"
                         rows={1}
                         onKeyDown={(e) => {
