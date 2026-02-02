@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
-import { Send, FileText, Loader2, LogOut, Pencil, X, Check } from 'lucide-react'; // アイコン追加
+import { Send, FileText, Loader2, LogOut, Pencil, X, Check, Trash2 } from 'lucide-react'; // アイコン追加
 import { supabase } from './supabaseClient';
 import type { Session } from '@supabase/supabase-js';
 import { getCurrentUrl } from './utils/url'; // 👈 先ほど作ったファイルをインポート
@@ -227,6 +227,26 @@ function NotesUI({ session, onLogout }: { session: Session; onLogout: () => void
         }
     };
 
+    // 🗑️ 削除実行
+    const handleDelete = async (id: string) => {
+        if (!window.confirm('このメモを削除しますか？')) return;
+
+        try {
+            const { error } = await supabase
+                .from('sitecue_notes')
+                .delete()
+                .eq('id', id);
+
+            if (error) throw error;
+
+            // ローカルのstateから除外
+            setNotes(notes.filter(note => note.id !== id));
+        } catch (error) {
+            console.error('Failed to delete note', error);
+            alert('Failed to delete note');
+        }
+    };
+
     return (
         <div className="w-full h-screen bg-gray-50 flex flex-col font-sans">
             <div className="p-4 bg-white border-b border-gray-200 shadow-sm sticky top-0 z-10 flex justify-between items-center">
@@ -288,13 +308,23 @@ function NotesUI({ session, onLogout }: { session: Session; onLogout: () => void
                                         {new Date(note.created_at).toLocaleDateString()}
                                     </div>
 
-                                    {/* 編集ボタン (ホバー時に出現) */}
-                                    <button
-                                        onClick={() => startEditing(note)}
-                                        className="absolute top-2 right-2 p-1.5 text-gray-400 hover:text-black hover:bg-gray-100 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                                    >
-                                        <Pencil className="w-3.5 h-3.5" />
-                                    </button>
+                                    {/* アクションボタン (ホバー時に出現) */}
+                                    <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <button
+                                            onClick={() => startEditing(note)}
+                                            className="p-1.5 text-gray-400 hover:text-black hover:bg-gray-100 rounded-full"
+                                            title="Edit"
+                                        >
+                                            <Pencil className="w-3.5 h-3.5" />
+                                        </button>
+                                        <button
+                                            onClick={() => handleDelete(note.id)}
+                                            className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full"
+                                            title="Delete"
+                                        >
+                                            <Trash2 className="w-3.5 h-3.5" />
+                                        </button>
+                                    </div>
                                 </>
                             )}
                         </div>
