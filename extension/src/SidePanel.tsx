@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
-import { Send, FileText, Loader2, LogOut, Pencil, X, Check, Trash2 } from 'lucide-react';
+import { Send, FileText, Loader2, Pencil, X, Check, Trash2 } from 'lucide-react';
 import { supabase } from './supabaseClient';
 import type { Session } from '@supabase/supabase-js';
 import { getCurrentUrl, getScopeUrls } from './utils/url';
+import Header from './components/Header';
 
 interface Note {
     id: string;
@@ -291,18 +292,12 @@ function NotesUI({ session, onLogout }: { session: Session; onLogout: () => void
 
     return (
         <div className="w-full h-screen bg-gray-50 flex flex-col font-sans">
-            <div className="p-4 bg-white border-b border-gray-200 shadow-sm sticky top-0 z-10 flex justify-between items-center gap-2">
-                <div className="flex-1 min-w-0">
-                    <h1 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-                        <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                        SiteCue
-                    </h1>
-                    <p className="text-xs text-gray-500 truncate" title={url}>{url || 'Waiting...'}</p>
-                </div>
-                <button onClick={onLogout} className="text-gray-400 hover:text-black shrink-0">
-                    <LogOut className="w-4 h-4" />
-                </button>
-            </div>
+            <Header
+                url={url}
+                domain={currentFullUrl ? getScopeUrls(currentFullUrl).domain : ''}
+                session={session}
+                onLogout={onLogout}
+            />
 
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
                 {loading ? (
