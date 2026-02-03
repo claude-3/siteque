@@ -1,18 +1,14 @@
 import { useEffect, useState } from 'react';
 import toast, { Toaster } from 'react-hot-toast';
-import { Send, FileText, Loader2, Pencil, X, Check, Trash2 } from 'lucide-react';
+import { Send, FileText, Loader2, Pencil, X, Check, Trash2, Info, AlertTriangle, Lightbulb } from 'lucide-react';
+import type { Database } from '../../types/supabase';
 import { supabase } from './supabaseClient';
 import type { Session } from '@supabase/supabase-js';
 import { getCurrentUrl, getScopeUrls } from './utils/url';
 import Header from './components/Header';
 
-interface Note {
-    id: string;
-    content: string;
-    url_pattern: string;
-    scope: 'domain' | 'exact';
-    created_at: string;
-}
+type Note = Database['public']['Tables']['sitecue_notes']['Row'];
+type NoteType = Database['public']['Tables']['sitecue_notes']['Insert']['note_type']; // Use Insert type as it allows optional if undefined, but helpful for enum values
 
 // 🌐 スコープ選択用の型
 type ScopeType = 'domain' | 'exact';
@@ -119,6 +115,7 @@ function NotesUI({ session, onLogout }: { session: Session; onLogout: () => void
     // 🌐 スコープ管理
     const [currentFullUrl, setCurrentFullUrl] = useState<string>('');
     const [selectedScope, setSelectedScope] = useState<ScopeType>('domain');
+    const [selectedType, setSelectedType] = useState<NoteType>('info');
 
     // ✅ 安全なURL取得 (修正済み)
     useEffect(() => {
@@ -216,7 +213,8 @@ function NotesUI({ session, onLogout }: { session: Session; onLogout: () => void
                 user_id: session.user.id,
                 url_pattern: targetUrlPattern,
                 content: newNote,
-                scope: selectedScope
+                scope: selectedScope,
+                note_type: selectedType
             };
 
             console.log(`Saving note with:`, payload);
@@ -319,7 +317,7 @@ function NotesUI({ session, onLogout }: { session: Session; onLogout: () => void
                     </div>
                 ) : (
                     notes.map((note) => (
-                        <div key={note.id} className="bg-white p-3 rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow group relative">
+                        <div key={note.id} className={`bg-white p-3 rounded-lg border shadow-sm hover:shadow-md transition-shadow group relative ${note.note_type === 'alert' ? 'border-red-200 bg-red-50/10' : 'border-gray-200'}`}>
                             {editingId === note.id ? (
                                 // ✏️ 編集モード
                                 <div className="space-y-2">
@@ -348,8 +346,15 @@ function NotesUI({ session, onLogout }: { session: Session; onLogout: () => void
                             ) : (
                                 // 👀 表示モード
                                 <>
-                                    <div className="text-sm text-gray-800 whitespace-pre-wrap pr-6">{note.content}</div>
-                                    <div className="text-[10px] text-gray-400 mt-2 flex justify-between items-center">
+                                    <div className="flex gap-2">
+                                        <div className="mt-0.5 shrink-0">
+                                            {note.note_type === 'alert' && <AlertTriangle className="w-4 h-4 text-red-500" />}
+                                            {note.note_type === 'idea' && <Lightbulb className="w-4 h-4 text-yellow-500" />}
+                                            {(note.note_type === 'info' || !note.note_type) && <Info className="w-4 h-4 text-blue-500" />}
+                                        </div>
+                                        <div className="text-sm text-gray-800 whitespace-pre-wrap pr-6 flex-1">{note.content}</div>
+                                    </div>
+                                    <div className="text-[10px] text-gray-400 mt-2 flex justify-between items-center pl-6">
                                         <span className={`px-1.5 py-0.5 rounded ${note.scope === 'exact' ? 'bg-blue-50 text-blue-600' : 'bg-gray-100 text-gray-500'}`}>
                                             {note.scope === 'exact' ? 'Page' : 'Domain'}
                                         </span>
@@ -382,27 +387,57 @@ function NotesUI({ session, onLogout }: { session: Session; onLogout: () => void
 
             <div className="p-4 bg-white border-t border-gray-200 space-y-3">
                 {/* スコープ選択 */}
-                <div className="flex items-center gap-4 text-xs">
-                    <label className="flex items-center gap-1.5 cursor-pointer text-gray-600 hover:text-black">
-                        <input
-                            type="radio"
-                            name="scope"
-                            checked={selectedScope === 'domain'}
-                            onChange={() => setSelectedScope('domain')}
-                            className="text-black focus:ring-black"
-                        />
-                        <span>Domain</span>
-                    </label>
-                    <label className="flex items-center gap-1.5 cursor-pointer text-gray-600 hover:text-black">
-                        <input
-                            type="radio"
-                            name="scope"
-                            checked={selectedScope === 'exact'}
-                            onChange={() => setSelectedScope('exact')}
-                            className="text-black focus:ring-black"
-                        />
-                        <span>This Page</span>
-                    </label>
+                <div className='flex items-center justify-between'>
+                    <div className="flex items-center gap-4 text-xs">
+                        <label className="flex items-center gap-1.5 cursor-pointer text-gray-600 hover:text-black">
+                            <input
+                                type="radio"
+                                name="scope"
+                                checked={selectedScope === 'domain'}
+                                onChange={() => setSelectedScope('domain')}
+                                className="text-black focus:ring-black"
+                            />
+                            <span>Domain</span>
+                        </label>
+                        <label className="flex items-center gap-1.5 cursor-pointer text-gray-600 hover:text-black">
+                            <input
+                                type="radio"
+                                name="scope"
+                                checked={selectedScope === 'exact'}
+                                onChange={() => setSelectedScope('exact')}
+                                className="text-black focus:ring-black"
+                            />
+                            <span>This Page</span>
+                        </label>
+                    </div>
+
+                    {/* Note Type Selection */}
+                    <div className="flex bg-gray-100 p-0.5 rounded-md">
+                        <button
+                            type="button"
+                            onClick={() => setSelectedType('info')}
+                            className={`p-1 rounded ${selectedType === 'info' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-400 hover:text-gray-600'}`}
+                            title="Info"
+                        >
+                            <Info className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setSelectedType('alert')}
+                            className={`p-1 rounded ${selectedType === 'alert' ? 'bg-white shadow-sm text-red-600' : 'text-gray-400 hover:text-gray-600'}`}
+                            title="Alert"
+                        >
+                            <AlertTriangle className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setSelectedType('idea')}
+                            className={`p-1 rounded ${selectedType === 'idea' ? 'bg-white shadow-sm text-yellow-600' : 'text-gray-400 hover:text-gray-600'}`}
+                            title="Idea"
+                        >
+                            <Lightbulb className="w-3.5 h-3.5" />
+                        </button>
+                    </div>
                 </div>
 
                 <form onSubmit={handleSubmit} className="flex gap-2">
