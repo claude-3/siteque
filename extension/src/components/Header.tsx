@@ -44,7 +44,7 @@ export default function Header({ url, domain, session, onLogout }: HeaderProps) 
             .single();
 
         if (data) {
-            setSettings({ color: data.color, label: data.label });
+            setSettings({ color: data.color ?? "", label: data.label ?? "" });
             setEditColor(data.color || 'green-500');
             setEditLabel(data.label || '');
         } else {
