@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
-import { Send, FileText, Loader2, LogOut, Pencil, X, Check, Trash2 } from 'lucide-react'; // アイコン追加
+import { Send, FileText, Loader2, LogOut, Pencil, X, Check, Trash2 } from 'lucide-react';
 import { supabase } from './supabaseClient';
 import type { Session } from '@supabase/supabase-js';
-import { getCurrentUrl, getScopeUrls } from './utils/url'; // 👈 先ほど作ったファイルをインポート
+import { getCurrentUrl, getScopeUrls } from './utils/url';
 
 const API_BASE = import.meta.env.VITE_API_URL;
 
@@ -123,27 +123,46 @@ function NotesUI({ session, onLogout }: { session: Session; onLogout: () => void
 
     // ✅ 安全なURL取得 (修正済み)
     useEffect(() => {
+        const updateStateWithUrl = (url: string) => {
+            setCurrentFullUrl(url);
+            const scopeUrls = getScopeUrls(url);
+            setUrl(scopeUrls.exact);
+        };
+
         const initUrl = async () => {
             const currentUrl = await getCurrentUrl();
-            if (currentUrl) {
-                setCurrentFullUrl(currentUrl);
-                const scopeUrls = getScopeUrls(currentUrl);
-                setUrl(scopeUrls.domain); // デフォルト表示用にドメインをセット
-            }
+            if (currentUrl) updateStateWithUrl(currentUrl);
         };
         initUrl();
 
         // Chrome拡張の時だけリスナーを登録
-        if (typeof chrome !== 'undefined' && chrome.tabs && chrome.tabs.onUpdated) {
-            const listener = (_tabId: number, changeInfo: TabChangeInfo, tab: chrome.tabs.Tab) => {
+        if (typeof chrome !== 'undefined' && chrome.tabs) {
+            // 1. URL変更監視 (onUpdated)
+            const updateListener = (_tabId: number, changeInfo: TabChangeInfo, tab: chrome.tabs.Tab) => {
                 if (tab.active && changeInfo.url) {
-                    setCurrentFullUrl(changeInfo.url);
-                    const scopeUrls = getScopeUrls(changeInfo.url);
-                    setUrl(scopeUrls.domain);
+                    updateStateWithUrl(changeInfo.url);
                 }
             };
-            chrome.tabs.onUpdated.addListener(listener);
-            return () => chrome.tabs.onUpdated.removeListener(listener);
+
+            // 2. タブ切り替え監視 (onActivated)
+            const activateListener = async (activeInfo: { tabId: number; windowId: number }) => {
+                try {
+                    const tab = await chrome.tabs.get(activeInfo.tabId);
+                    if (tab.url) {
+                        updateStateWithUrl(tab.url);
+                    }
+                } catch (e) {
+                    console.error('Failed to get active tab', e);
+                }
+            };
+
+            if (chrome.tabs.onUpdated) chrome.tabs.onUpdated.addListener(updateListener);
+            if (chrome.tabs.onActivated) chrome.tabs.onActivated.addListener(activateListener);
+
+            return () => {
+                if (chrome.tabs.onUpdated) chrome.tabs.onUpdated.removeListener(updateListener);
+                if (chrome.tabs.onActivated) chrome.tabs.onActivated.removeListener(activateListener);
+            };
         }
     }, []);
 
@@ -275,15 +294,15 @@ function NotesUI({ session, onLogout }: { session: Session; onLogout: () => void
 
     return (
         <div className="w-full h-screen bg-gray-50 flex flex-col font-sans">
-            <div className="p-4 bg-white border-b border-gray-200 shadow-sm sticky top-0 z-10 flex justify-between items-center">
-                <div>
+            <div className="p-4 bg-white border-b border-gray-200 shadow-sm sticky top-0 z-10 flex justify-between items-center gap-2">
+                <div className="flex-1 min-w-0">
                     <h1 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
                         <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
                         SiteCue
                     </h1>
-                    <p className="text-xs text-gray-500 truncate max-w-[150px]" title={url}>{url || 'Waiting...'}</p>
+                    <p className="text-xs text-gray-500 truncate" title={url}>{url || 'Waiting...'}</p>
                 </div>
-                <button onClick={onLogout} className="text-gray-400 hover:text-black">
+                <button onClick={onLogout} className="text-gray-400 hover:text-black shrink-0">
                     <LogOut className="w-4 h-4" />
                 </button>
             </div>
