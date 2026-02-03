@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
-import { Send, FileText, Loader2, LogOut, Pencil, X, Check, Trash2 } from 'lucide-react';
+import toast, { Toaster } from 'react-hot-toast';
+import { Send, FileText, Loader2, Pencil, X, Check, Trash2 } from 'lucide-react';
 import { supabase } from './supabaseClient';
 import type { Session } from '@supabase/supabase-js';
 import { getCurrentUrl, getScopeUrls } from './utils/url';
+import Header from './components/Header';
 
 interface Note {
     id: string;
@@ -225,10 +227,12 @@ function NotesUI({ session, onLogout }: { session: Session; onLogout: () => void
 
             if (error) throw error;
 
+            toast.success('Cue added');
             setNewNote('');
             fetchNotes();
         } catch (error) {
             console.error('Failed to create note', error);
+            toast.error('Failed to create note');
         } finally {
             setSubmitting(false);
         }
@@ -261,9 +265,10 @@ function NotesUI({ session, onLogout }: { session: Session; onLogout: () => void
             // ローカルのメモ一覧も更新（再取得しなくても画面に反映させる）
             setNotes(notes.map(n => n.id === id ? { ...n, content: editContent } : n));
             setEditingId(null);
+            toast.success('Cue updated');
         } catch (error) {
             console.error('Failed to update note', error);
-            alert('Failed to update note');
+            toast.error('Failed to update note');
         } finally {
             setUpdating(false);
         }
@@ -283,26 +288,24 @@ function NotesUI({ session, onLogout }: { session: Session; onLogout: () => void
 
             // ローカルのstateから除外
             setNotes(notes.filter(note => note.id !== id));
+            toast.success('Cue deleted');
         } catch (error) {
             console.error('Failed to delete note', error);
-            alert('Failed to delete note');
+            toast.error('Failed to delete note');
         }
     };
 
     return (
         <div className="w-full h-screen bg-gray-50 flex flex-col font-sans">
-            <div className="p-4 bg-white border-b border-gray-200 shadow-sm sticky top-0 z-10 flex justify-between items-center gap-2">
-                <div className="flex-1 min-w-0">
-                    <h1 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-                        <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                        SiteCue
-                    </h1>
-                    <p className="text-xs text-gray-500 truncate" title={url}>{url || 'Waiting...'}</p>
-                </div>
-                <button onClick={onLogout} className="text-gray-400 hover:text-black shrink-0">
-                    <LogOut className="w-4 h-4" />
-                </button>
-            </div>
+            <Toaster position="bottom-center" toastOptions={{
+                style: { fontSize: '12px', padding: '8px 12px', borderRadius: '8px', background: '#333', color: '#fff' }
+            }} />
+            <Header
+                url={url}
+                domain={currentFullUrl ? getScopeUrls(currentFullUrl).domain : ''}
+                session={session}
+                onLogout={onLogout}
+            />
 
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
                 {loading ? (
