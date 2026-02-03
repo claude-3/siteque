@@ -25,6 +25,14 @@ Chrome拡張機能として動作し、現在開いているURLやドメイン�
     - **Scope = 'exact'**: Hostname + Path + Queryを保存する (例: `github.com/user/repo?q=1`)。
 - **Migrations**: DB変更は必ず `supabase/migrations` 内のSQLファイルで行うこと。
 
+### `sitecue_domain_settings`
+- ドメインごとの環境設定（ラベル・色）を保持。
+- `user_id`: uuid (FK) - RLS必須
+- `domain`: text (Unique per user)
+- `label`: text (例: 'DEV', 'PROD')
+- `color`: text (例: 'red', 'blue' - Tailwindクラス用マッピングキー)
+
+
 ## Development Guidelines
 1. **Atomic Design**: 機能追加は小さく分割し、1機能1コミットを心がける。
 2. **Security First**: データベース操作は必ずRLSポリシーを介して行う。クライアント側でのフィルタリングに依存せず、DBレベルでセキュリティを担保する。
