@@ -1,11 +1,8 @@
 import { useEffect, useState } from 'react';
-import axios from 'axios';
 import { Send, FileText, Loader2, LogOut, Pencil, X, Check, Trash2 } from 'lucide-react';
 import { supabase } from './supabaseClient';
 import type { Session } from '@supabase/supabase-js';
 import { getCurrentUrl, getScopeUrls } from './utils/url';
-
-const API_BASE = import.meta.env.VITE_API_URL;
 
 interface Note {
     id: string;
@@ -214,6 +211,7 @@ function NotesUI({ session, onLogout }: { session: Session; onLogout: () => void
             const targetUrlPattern = selectedScope === 'domain' ? scopeUrls.domain : scopeUrls.exact;
 
             const payload = {
+                user_id: session.user.id,
                 url_pattern: targetUrlPattern,
                 content: newNote,
                 scope: selectedScope
@@ -221,11 +219,12 @@ function NotesUI({ session, onLogout }: { session: Session; onLogout: () => void
 
             console.log(`Saving note with:`, payload);
 
-            await axios.post(`${API_BASE}/notes`, payload, {
-                headers: {
-                    Authorization: `Bearer ${session.access_token}`
-                }
-            });
+            const { error } = await supabase
+                .from('sitecue_notes')
+                .insert(payload);
+
+            if (error) throw error;
+
             setNewNote('');
             fetchNotes();
         } catch (error) {
@@ -252,14 +251,12 @@ function NotesUI({ session, onLogout }: { session: Session; onLogout: () => void
         if (!editContent.trim()) return;
         setUpdating(true);
         try {
-            await axios.put(`${API_BASE}/notes`, {
-                id: id,
-                content: editContent
-            }, {
-                headers: {
-                    Authorization: `Bearer ${session.access_token}`
-                }
-            });
+            const { error } = await supabase
+                .from('sitecue_notes')
+                .update({ content: editContent })
+                .eq('id', id);
+
+            if (error) throw error;
 
             // ローカルのメモ一覧も更新（再取得しなくても画面に反映させる）
             setNotes(notes.map(n => n.id === id ? { ...n, content: editContent } : n));
