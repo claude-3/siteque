@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import toast, { Toaster } from 'react-hot-toast';
 import { Send, FileText, Loader2, Pencil, X, Check, Trash2 } from 'lucide-react';
 import { supabase } from './supabaseClient';
 import type { Session } from '@supabase/supabase-js';
@@ -226,10 +227,12 @@ function NotesUI({ session, onLogout }: { session: Session; onLogout: () => void
 
             if (error) throw error;
 
+            toast.success('Cue added');
             setNewNote('');
             fetchNotes();
         } catch (error) {
             console.error('Failed to create note', error);
+            toast.error('Failed to create note');
         } finally {
             setSubmitting(false);
         }
@@ -262,9 +265,10 @@ function NotesUI({ session, onLogout }: { session: Session; onLogout: () => void
             // ローカルのメモ一覧も更新（再取得しなくても画面に反映させる）
             setNotes(notes.map(n => n.id === id ? { ...n, content: editContent } : n));
             setEditingId(null);
+            toast.success('Cue updated');
         } catch (error) {
             console.error('Failed to update note', error);
-            alert('Failed to update note');
+            toast.error('Failed to update note');
         } finally {
             setUpdating(false);
         }
@@ -284,14 +288,18 @@ function NotesUI({ session, onLogout }: { session: Session; onLogout: () => void
 
             // ローカルのstateから除外
             setNotes(notes.filter(note => note.id !== id));
+            toast.success('Cue deleted');
         } catch (error) {
             console.error('Failed to delete note', error);
-            alert('Failed to delete note');
+            toast.error('Failed to delete note');
         }
     };
 
     return (
         <div className="w-full h-screen bg-gray-50 flex flex-col font-sans">
+            <Toaster position="bottom-center" toastOptions={{
+                style: { fontSize: '12px', padding: '8px 12px', borderRadius: '8px', background: '#333', color: '#fff' }
+            }} />
             <Header
                 url={url}
                 domain={currentFullUrl ? getScopeUrls(currentFullUrl).domain : ''}

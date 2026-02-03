@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import toast from 'react-hot-toast';
 import { LogOut, Settings } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 import type { Session } from '@supabase/supabase-js';
@@ -69,8 +70,10 @@ export default function Header({ url, domain, session, onLogout }: HeaderProps) 
             if (error) throw error;
             setIsSettingsOpen(false);
             fetchSettings();
+            toast.success('Settings saved');
         } catch (error) {
             console.error('Failed to save domain settings', error);
+            toast.error('Failed to save settings');
         } finally {
             setSaving(false);
         }
