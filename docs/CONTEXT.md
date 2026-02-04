@@ -19,6 +19,7 @@ Chrome拡張機能として動作し、現在開いているURLやドメイン�
 - メモのメインテーブル。`user_id` (Auth), `content` などを保持。
 - `scope`: `'domain'` | `'exact'` (Check Constraint)
 - `note_type`: `'info'` | `'alert'` | `'idea'` (Check Constraint, Default: 'info')
+- `is_resolved`: `boolean` (Default: `false`)
 - `url_pattern`:
   - **Normalization Rules**:
     - Protocol (`https://`, `http://`) は必ず除去する。

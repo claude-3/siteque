@@ -17,6 +17,7 @@ export interface Database {
                     url_pattern: string
                     scope: 'domain' | 'exact'
                     note_type: 'info' | 'alert' | 'idea'
+                    is_resolved: boolean
                     created_at: string
                     updated_at: string | null
                 }
@@ -27,6 +28,7 @@ export interface Database {
                     url_pattern: string
                     scope: 'domain' | 'exact'
                     note_type?: 'info' | 'alert' | 'idea' // Optional because default is 'info'
+                    is_resolved?: boolean
                     created_at?: string
                     updated_at?: string | null
                 }
@@ -37,6 +39,7 @@ export interface Database {
                     url_pattern?: string
                     scope?: 'domain' | 'exact'
                     note_type?: 'info' | 'alert' | 'idea'
+                    is_resolved?: boolean
                     created_at?: string
                     updated_at?: string | null
                 }

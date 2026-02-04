@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import toast, { Toaster } from 'react-hot-toast';
-import { Send, FileText, Loader2, Pencil, X, Check, Trash2, Info, AlertTriangle, Lightbulb } from 'lucide-react';
+import { Send, FileText, Loader2, Pencil, X, Check, Trash2, Info, AlertTriangle, Lightbulb, CheckSquare, Square } from 'lucide-react';
 import type { Database } from '../../types/supabase';
 import { supabase } from './supabaseClient';
 import type { Session } from '@supabase/supabase-js';
@@ -293,6 +293,25 @@ function NotesUI({ session, onLogout }: { session: Session; onLogout: () => void
         }
     };
 
+    // ✅ 完了ステータス切り替え
+    const handleToggleResolved = async (id: string, currentStatus: boolean | undefined) => {
+        // currentStatus might be undefined if not set yet (though DB default is false), treat as false
+        const nextStatus = !currentStatus;
+        try {
+            const { error } = await supabase
+                .from('sitecue_notes')
+                .update({ is_resolved: nextStatus })
+                .eq('id', id);
+
+            if (error) throw error;
+
+            setNotes(notes.map(n => n.id === id ? { ...n, is_resolved: nextStatus } : n));
+        } catch (error) {
+            console.error('Failed to toggle resolved status', error);
+            toast.error('Failed to update status');
+        }
+    };
+
     return (
         <div className="w-full h-screen bg-gray-50 flex flex-col font-sans">
             <Toaster position="bottom-center" toastOptions={{
@@ -317,7 +336,7 @@ function NotesUI({ session, onLogout }: { session: Session; onLogout: () => void
                     </div>
                 ) : (
                     notes.map((note) => (
-                        <div key={note.id} className={`bg-white p-3 rounded-lg border shadow-sm hover:shadow-md transition-shadow group relative ${note.note_type === 'alert' ? 'border-red-200 bg-red-50/10' : 'border-gray-200'}`}>
+                        <div key={note.id} className={`bg-white p-3 rounded-lg border shadow-sm hover:shadow-md transition-shadow group relative ${note.note_type === 'alert' ? 'border-red-200 bg-red-50/10' : 'border-gray-200'} ${note.is_resolved ? 'opacity-60 grayscale-[0.5]' : ''}`}>
                             {editingId === note.id ? (
                                 // ✏️ 編集モード
                                 <div className="space-y-2">
@@ -347,12 +366,19 @@ function NotesUI({ session, onLogout }: { session: Session; onLogout: () => void
                                 // 👀 表示モード
                                 <>
                                     <div className="flex gap-2">
+                                        <button
+                                            onClick={() => handleToggleResolved(note.id, note.is_resolved)}
+                                            className={`mt-0.5 shrink-0 transition-colors ${note.is_resolved ? 'text-gray-500' : 'text-gray-300 hover:text-gray-400'}`}
+                                            title={note.is_resolved ? "Mark as unresolved" : "Mark as resolved"}
+                                        >
+                                            {note.is_resolved ? <CheckSquare className="w-4 h-4" /> : <Square className="w-4 h-4" />}
+                                        </button>
                                         <div className="mt-0.5 shrink-0">
                                             {note.note_type === 'alert' && <AlertTriangle className="w-4 h-4 text-red-500" />}
                                             {note.note_type === 'idea' && <Lightbulb className="w-4 h-4 text-yellow-500" />}
                                             {(note.note_type === 'info' || !note.note_type) && <Info className="w-4 h-4 text-blue-500" />}
                                         </div>
-                                        <div className="text-sm text-gray-800 whitespace-pre-wrap pr-6 flex-1">{note.content}</div>
+                                        <div className={`text-sm text-gray-800 whitespace-pre-wrap pr-6 flex-1 ${note.is_resolved ? 'line-through text-gray-500' : ''}`}>{note.content}</div>
                                     </div>
                                     <div className="text-[10px] text-gray-400 mt-2 flex justify-between items-center pl-6">
                                         <span className={`px-1.5 py-0.5 rounded ${note.scope === 'exact' ? 'bg-blue-50 text-blue-600' : 'bg-gray-100 text-gray-500'}`}>
