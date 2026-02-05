@@ -7,6 +7,9 @@ Chrome拡張機能として動作し、現在開いているURLやドメイン�
 ## Architecture
 - **Extension**: React + Vite + Tailwind CSS (Chrome Extension Manifest V3)
   - Path: `extension/`
+  - **Key Libraries**:
+    - `react-textarea-autosize`: テキスト入力の自動伸長に使用。
+    - `lucide-react`: アイコン表示に使用。
   - **Communication Pattern**: Supabase JS Client (`@supabase/supabase-js`) を使用して **DBと直接通信する**。
   - ⛔ **Prohibited**: `extension/` から `api/` (Cloudflare Workers) を経由してCRUDを行ってはならない。`axios` や `fetch` でバックエンドを叩くのは禁止。
 - **Web**: Next.js (App Router)
