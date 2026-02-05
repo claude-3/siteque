@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import toast, { Toaster } from 'react-hot-toast';
+import TextareaAutosize from 'react-textarea-autosize';
 import { Send, FileText, Loader2, Pencil, X, Check, Trash2, Info, AlertTriangle, Lightbulb, CheckSquare, Square } from 'lucide-react';
 import type { Database } from '../../types/supabase';
 import { supabase } from './supabaseClient';
@@ -366,11 +367,18 @@ function NotesUI({ session, onLogout }: { session: Session; onLogout: () => void
                                 {editingId === note.id ? (
                                     // ✏️ 編集モード
                                     <div className="space-y-2">
-                                        <textarea
+                                        <TextareaAutosize
                                             value={editContent}
                                             onChange={(e) => setEditContent(e.target.value)}
-                                            className="w-full border border-gray-300 rounded p-2 text-sm focus:outline-none focus:ring-2 focus:ring-black/5 min-h-[60px]"
+                                            className="w-full border border-gray-300 rounded p-2 text-sm focus:outline-none focus:ring-2 focus:ring-black/5 resize-none"
+                                            minRows={3}
                                             autoFocus
+                                            onKeyDown={(e) => {
+                                                if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+                                                    e.preventDefault();
+                                                    handleUpdate(note.id);
+                                                }
+                                            }}
                                         />
                                         <div className="flex justify-end gap-2">
                                             <button
@@ -492,15 +500,15 @@ function NotesUI({ session, onLogout }: { session: Session; onLogout: () => void
                     </div>
                 </div>
 
-                <form onSubmit={handleSubmit} className="flex gap-2">
-                    <textarea
+                <form onSubmit={handleSubmit} className="flex gap-2 items-end">
+                    <TextareaAutosize
                         value={newNote}
                         onChange={(e) => setNewNote(e.target.value)}
                         placeholder={`Add a cue to ${selectedScope === 'domain' ? 'this domain' : 'this page'}...`}
-                        className="flex-1 resize-none border border-gray-200 rounded-md p-2 text-sm focus:outline-none focus:ring-2 focus:ring-black/5 min-h-[40px] max-h-[100px]"
-                        rows={1}
+                        className="flex-1 resize-none border border-gray-200 rounded-md p-2 text-sm focus:outline-none focus:ring-2 focus:ring-black/5 max-h-50"
+                        minRows={1}
                         onKeyDown={(e) => {
-                            if (e.key === 'Enter' && !e.shiftKey) {
+                            if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
                                 e.preventDefault();
                                 handleSubmit(e);
                             }
