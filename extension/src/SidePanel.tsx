@@ -25,16 +25,19 @@ export default function SidePanel() {
     const [password, setPassword] = useState('');
     const [authLoading, setAuthLoading] = useState(false);
     const [authError, setAuthError] = useState<string | null>(null);
+    const [sessionLoading, setSessionLoading] = useState(true);
 
     useEffect(() => {
         supabase.auth.getSession().then(({ data: { session } }) => {
             setSession(session);
+            setSessionLoading(false);
         });
 
         const {
             data: { subscription },
         } = supabase.auth.onAuthStateChange((_event, session) => {
             setSession(session);
+            setSessionLoading(false);
         });
 
         return () => subscription.unsubscribe();
@@ -55,6 +58,14 @@ export default function SidePanel() {
     const handleLogout = async () => {
         await supabase.auth.signOut();
     };
+
+    if (sessionLoading) {
+        return (
+            <div className="w-full h-screen bg-gray-50 flex flex-col items-center justify-center font-sans">
+                <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
+            </div>
+        );
+    }
 
     if (!session) {
         return (
