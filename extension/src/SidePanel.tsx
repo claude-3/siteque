@@ -10,7 +10,7 @@ import Header from './components/Header';
 import FilterBar from './components/FilterBar';
 
 type Note = Database['public']['Tables']['sitecue_notes']['Row'];
-type NoteType = Database['public']['Tables']['sitecue_notes']['Insert']['note_type']; // Use Insert type as it allows optional if undefined, but helpful for enum values
+type NoteType = Database['public']['Tables']['sitecue_notes']['Row']['note_type'];
 
 // 🌐 スコープ選択用の型
 type ScopeType = 'domain' | 'exact';
@@ -112,6 +112,7 @@ function NotesUI({ session, onLogout }: { session: Session; onLogout: () => void
     // ✏️ 編集用のステート
     const [editingId, setEditingId] = useState<string | null>(null);
     const [editContent, setEditContent] = useState('');
+    const [editType, setEditType] = useState<NoteType>('info');
     const [updating, setUpdating] = useState(false);
 
     // 🌐 スコープ管理
@@ -246,12 +247,14 @@ function NotesUI({ session, onLogout }: { session: Session; onLogout: () => void
     const startEditing = (note: Note) => {
         setEditingId(note.id);
         setEditContent(note.content);
+        setEditType(note.note_type || 'info');
     };
 
     // ❌ 編集キャンセル
     const cancelEditing = () => {
         setEditingId(null);
         setEditContent('');
+        setEditType('info');
     };
 
     // 💾 更新実行 (PUT)
@@ -261,13 +264,16 @@ function NotesUI({ session, onLogout }: { session: Session; onLogout: () => void
         try {
             const { error } = await supabase
                 .from('sitecue_notes')
-                .update({ content: editContent })
+                .update({
+                    content: editContent,
+                    note_type: editType
+                })
                 .eq('id', id);
 
             if (error) throw error;
 
             // ローカルのメモ一覧も更新（再取得しなくても画面に反映させる）
-            setNotes(notes.map(n => n.id === id ? { ...n, content: editContent } : n));
+            setNotes(notes.map(n => n.id === id ? { ...n, content: editContent, note_type: editType } : n));
             setEditingId(null);
             toast.success('Cue updated');
         } catch (error) {
@@ -367,6 +373,32 @@ function NotesUI({ session, onLogout }: { session: Session; onLogout: () => void
                                 {editingId === note.id ? (
                                     // ✏️ 編集モード
                                     <div className="space-y-2">
+                                        <div className="flex bg-gray-50 p-0.5 rounded-md w-fit mb-2">
+                                            <button
+                                                type="button"
+                                                onClick={() => setEditType('info')}
+                                                className={`p-1 rounded ${editType === 'info' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-400 hover:text-gray-600'}`}
+                                                title="Info"
+                                            >
+                                                <Info className="w-3.5 h-3.5" />
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => setEditType('alert')}
+                                                className={`p-1 rounded ${editType === 'alert' ? 'bg-white shadow-sm text-red-600' : 'text-gray-400 hover:text-gray-600'}`}
+                                                title="Alert"
+                                            >
+                                                <AlertTriangle className="w-3.5 h-3.5" />
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => setEditType('idea')}
+                                                className={`p-1 rounded ${editType === 'idea' ? 'bg-white shadow-sm text-yellow-600' : 'text-gray-400 hover:text-gray-600'}`}
+                                                title="Idea"
+                                            >
+                                                <Lightbulb className="w-3.5 h-3.5" />
+                                            </button>
+                                        </div>
                                         <TextareaAutosize
                                             value={editContent}
                                             onChange={(e) => setEditContent(e.target.value)}
