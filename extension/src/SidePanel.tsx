@@ -6,6 +6,7 @@ import { supabase } from './supabaseClient';
 import type { Session } from '@supabase/supabase-js';
 import { getCurrentUrl, getScopeUrls } from './utils/url';
 import Header from './components/Header';
+import FilterBar from './components/FilterBar';
 
 type Note = Database['public']['Tables']['sitecue_notes']['Row'];
 type NoteType = Database['public']['Tables']['sitecue_notes']['Insert']['note_type']; // Use Insert type as it allows optional if undefined, but helpful for enum values
@@ -116,6 +117,10 @@ function NotesUI({ session, onLogout }: { session: Session; onLogout: () => void
     const [currentFullUrl, setCurrentFullUrl] = useState<string>('');
     const [selectedScope, setSelectedScope] = useState<ScopeType>('domain');
     const [selectedType, setSelectedType] = useState<NoteType>('info');
+
+    // 🔍 フィルタリング用ステート
+    const [filterType, setFilterType] = useState<'all' | 'info' | 'alert' | 'idea'>('all');
+    const [showResolved, setShowResolved] = useState(false);
 
     // ✅ 安全なURL取得 (修正済み)
     useEffect(() => {
@@ -324,6 +329,13 @@ function NotesUI({ session, onLogout }: { session: Session; onLogout: () => void
                 onLogout={onLogout}
             />
 
+            <FilterBar
+                filterType={filterType}
+                setFilterType={setFilterType}
+                showResolved={showResolved}
+                setShowResolved={setShowResolved}
+            />
+
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
                 {loading ? (
                     <div className="flex justify-center p-8">
@@ -335,79 +347,93 @@ function NotesUI({ session, onLogout }: { session: Session; onLogout: () => void
                         <p className="text-sm">No cues found for this site.</p>
                     </div>
                 ) : (
-                    notes.map((note) => (
-                        <div key={note.id} className={`bg-white p-3 rounded-lg border shadow-sm hover:shadow-md transition-shadow group relative ${note.note_type === 'alert' ? 'border-red-200 bg-red-50/10' : 'border-gray-200'} ${note.is_resolved ? 'opacity-60 grayscale-[0.5]' : ''}`}>
-                            {editingId === note.id ? (
-                                // ✏️ 編集モード
-                                <div className="space-y-2">
-                                    <textarea
-                                        value={editContent}
-                                        onChange={(e) => setEditContent(e.target.value)}
-                                        className="w-full border border-gray-300 rounded p-2 text-sm focus:outline-none focus:ring-2 focus:ring-black/5 min-h-[60px]"
-                                        autoFocus
-                                    />
-                                    <div className="flex justify-end gap-2">
-                                        <button
-                                            onClick={cancelEditing}
-                                            className="p-1 text-gray-400 hover:text-gray-600 rounded"
-                                        >
-                                            <X className="w-4 h-4" />
-                                        </button>
-                                        <button
-                                            onClick={() => handleUpdate(note.id)}
-                                            disabled={updating}
-                                            className="p-1 bg-black text-white rounded hover:bg-gray-800 disabled:opacity-50"
-                                        >
-                                            {updating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-                                        </button>
-                                    </div>
-                                </div>
-                            ) : (
-                                // 👀 表示モード
-                                <>
-                                    <div className="flex gap-2">
-                                        <button
-                                            onClick={() => handleToggleResolved(note.id, note.is_resolved)}
-                                            className={`mt-0.5 shrink-0 transition-colors ${note.is_resolved ? 'text-gray-500' : 'text-gray-300 hover:text-gray-400'}`}
-                                            title={note.is_resolved ? "Mark as unresolved" : "Mark as resolved"}
-                                        >
-                                            {note.is_resolved ? <CheckSquare className="w-4 h-4" /> : <Square className="w-4 h-4" />}
-                                        </button>
-                                        <div className="mt-0.5 shrink-0">
-                                            {note.note_type === 'alert' && <AlertTriangle className="w-4 h-4 text-red-500" />}
-                                            {note.note_type === 'idea' && <Lightbulb className="w-4 h-4 text-yellow-500" />}
-                                            {(note.note_type === 'info' || !note.note_type) && <Info className="w-4 h-4 text-blue-500" />}
+                    notes
+                        .filter(note => {
+                            // 1. Note Type Filter
+                            if (filterType !== 'all') {
+                                // DBのnote_typeがnull/undefinedの場合は'info'として扱う
+                                const type = note.note_type || 'info';
+                                if (type !== filterType) return false;
+                            }
+                            // 2. Resolved Filter
+                            if (!showResolved && note.is_resolved) {
+                                return false;
+                            }
+                            return true;
+                        })
+                        .map((note) => (
+                            <div key={note.id} className={`bg-white p-3 rounded-lg border shadow-sm hover:shadow-md transition-shadow group relative ${note.note_type === 'alert' ? 'border-red-200 bg-red-50/10' : 'border-gray-200'} ${note.is_resolved ? 'opacity-60 grayscale-[0.5]' : ''}`}>
+                                {editingId === note.id ? (
+                                    // ✏️ 編集モード
+                                    <div className="space-y-2">
+                                        <textarea
+                                            value={editContent}
+                                            onChange={(e) => setEditContent(e.target.value)}
+                                            className="w-full border border-gray-300 rounded p-2 text-sm focus:outline-none focus:ring-2 focus:ring-black/5 min-h-[60px]"
+                                            autoFocus
+                                        />
+                                        <div className="flex justify-end gap-2">
+                                            <button
+                                                onClick={cancelEditing}
+                                                className="p-1 text-gray-400 hover:text-gray-600 rounded"
+                                            >
+                                                <X className="w-4 h-4" />
+                                            </button>
+                                            <button
+                                                onClick={() => handleUpdate(note.id)}
+                                                disabled={updating}
+                                                className="p-1 bg-black text-white rounded hover:bg-gray-800 disabled:opacity-50"
+                                            >
+                                                {updating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                                            </button>
                                         </div>
-                                        <div className={`text-sm text-gray-800 whitespace-pre-wrap pr-6 flex-1 ${note.is_resolved ? 'line-through text-gray-500' : ''}`}>{note.content}</div>
                                     </div>
-                                    <div className="text-[10px] text-gray-400 mt-2 flex justify-between items-center pl-6">
-                                        <span className={`px-1.5 py-0.5 rounded ${note.scope === 'exact' ? 'bg-blue-50 text-blue-600' : 'bg-gray-100 text-gray-500'}`}>
-                                            {note.scope === 'exact' ? 'Page' : 'Domain'}
-                                        </span>
-                                        <span>{new Date(note.created_at).toLocaleDateString()}</span>
-                                    </div>
+                                ) : (
+                                    // 👀 表示モード
+                                    <>
+                                        <div className="flex gap-2">
+                                            <button
+                                                onClick={() => handleToggleResolved(note.id, note.is_resolved)}
+                                                className={`mt-0.5 shrink-0 transition-colors ${note.is_resolved ? 'text-gray-500' : 'text-gray-300 hover:text-gray-400'}`}
+                                                title={note.is_resolved ? "Mark as unresolved" : "Mark as resolved"}
+                                            >
+                                                {note.is_resolved ? <CheckSquare className="w-4 h-4" /> : <Square className="w-4 h-4" />}
+                                            </button>
+                                            <div className="mt-0.5 shrink-0">
+                                                {note.note_type === 'alert' && <AlertTriangle className="w-4 h-4 text-red-500" />}
+                                                {note.note_type === 'idea' && <Lightbulb className="w-4 h-4 text-yellow-500" />}
+                                                {(note.note_type === 'info' || !note.note_type) && <Info className="w-4 h-4 text-blue-500" />}
+                                            </div>
+                                            <div className={`text-sm text-gray-800 whitespace-pre-wrap pr-6 flex-1 ${note.is_resolved ? 'line-through text-gray-500' : ''}`}>{note.content}</div>
+                                        </div>
+                                        <div className="text-[10px] text-gray-400 mt-2 flex justify-between items-center pl-6">
+                                            <span className={`px-1.5 py-0.5 rounded ${note.scope === 'exact' ? 'bg-blue-50 text-blue-600' : 'bg-gray-100 text-gray-500'}`}>
+                                                {note.scope === 'exact' ? 'Page' : 'Domain'}
+                                            </span>
+                                            <span>{new Date(note.created_at).toLocaleDateString()}</span>
+                                        </div>
 
-                                    {/* アクションボタン (ホバー時に出現) */}
-                                    <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <button
-                                            onClick={() => startEditing(note)}
-                                            className="p-1.5 text-gray-400 hover:text-black hover:bg-gray-100 rounded-full"
-                                            title="Edit"
-                                        >
-                                            <Pencil className="w-3.5 h-3.5" />
-                                        </button>
-                                        <button
-                                            onClick={() => handleDelete(note.id)}
-                                            className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full"
-                                            title="Delete"
-                                        >
-                                            <Trash2 className="w-3.5 h-3.5" />
-                                        </button>
-                                    </div>
-                                </>
-                            )}
-                        </div>
-                    ))
+                                        {/* アクションボタン (ホバー時に出現) */}
+                                        <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <button
+                                                onClick={() => startEditing(note)}
+                                                className="p-1.5 text-gray-400 hover:text-black hover:bg-gray-100 rounded-full"
+                                                title="Edit"
+                                            >
+                                                <Pencil className="w-3.5 h-3.5" />
+                                            </button>
+                                            <button
+                                                onClick={() => handleDelete(note.id)}
+                                                className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full"
+                                                title="Delete"
+                                            >
+                                                <Trash2 className="w-3.5 h-3.5" />
+                                            </button>
+                                        </div>
+                                    </>
+                                )}
+                            </div>
+                        ))
                 )}
             </div>
 
