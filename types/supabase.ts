@@ -86,6 +86,43 @@ export interface Database {
                     }
                 ]
             }
+            sitecue_links: {
+                Row: {
+                    id: string
+                    user_id: string
+                    domain: string
+                    target_url: string
+                    label: string
+                    type: 'related' | 'env'
+                    created_at: string
+                }
+                Insert: {
+                    id?: string
+                    user_id?: string
+                    domain: string
+                    target_url: string
+                    label: string
+                    type: 'related' | 'env'
+                    created_at?: string
+                }
+                Update: {
+                    id?: string
+                    user_id?: string
+                    domain?: string
+                    target_url?: string
+                    label?: string
+                    type?: 'related' | 'env'
+                    created_at?: string
+                }
+                Relationships: [
+                    {
+                        foreignKeyName: "sitecue_links_user_id_fkey"
+                        columns: ["user_id"]
+                        referencedRelation: "users"
+                        referencedColumns: ["id"]
+                    }
+                ]
+            }
         }
         Views: {
             [_ in never]: never

@@ -18,11 +18,11 @@ export const normalizeUrl = (url: string, scope: 'domain' | 'exact'): string => 
     try {
         const u = new URL(url);
         if (scope === 'domain') {
-            return u.hostname;
+            return u.host;
         } else {
             // exact: schemaを除去し、パスとクエリを保持
             // 例: https://example.com/path?q=1 -> example.com/path?q=1
-            return u.hostname + u.pathname + u.search;
+            return u.host + u.pathname + u.search;
         }
     } catch (e) {
         // URL解析に失敗した場合はそのまま返す（または適宜ハンドリング）

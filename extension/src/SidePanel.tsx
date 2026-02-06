@@ -8,6 +8,7 @@ import type { Session } from '@supabase/supabase-js';
 import { getCurrentUrl, getScopeUrls } from './utils/url';
 import Header from './components/Header';
 import FilterBar from './components/FilterBar';
+import QuickLinks from './components/QuickLinks';
 
 type Note = Database['public']['Tables']['sitecue_notes']['Row'];
 type NoteType = Database['public']['Tables']['sitecue_notes']['Row']['note_type'];
@@ -346,6 +347,8 @@ function NotesUI({ session, onLogout }: { session: Session; onLogout: () => void
                 session={session}
                 onLogout={onLogout}
             />
+
+            <QuickLinks currentDomain={currentFullUrl ? getScopeUrls(currentFullUrl).domain : null} />
 
             <FilterBar
                 filterType={filterType}
