@@ -53,7 +53,7 @@ export function useQuickLinks(currentDomain: string | null) {
 
                             return {
                                 ...link,
-                                label: `↩ ${link.domain}`, // Indicate return path
+                                label: link.domain, // Just use the domain name, no prefix
                                 target_url: `${protocol}${link.domain}`, // Point back to source
                             };
                         }
@@ -63,6 +63,13 @@ export function useQuickLinks(currentDomain: string | null) {
                 }
                 return null;
             }).filter((link): link is Link => link !== null);
+
+            // Sort: Env links first, then others
+            processedLinks.sort((a, b) => {
+                if (a.type === 'env' && b.type !== 'env') return -1;
+                if (a.type !== 'env' && b.type === 'env') return 1;
+                return 0;
+            });
 
             setLinks(processedLinks);
         } catch (err: any) {
@@ -94,10 +101,45 @@ export function useQuickLinks(currentDomain: string | null) {
 
             if (error) throw error;
 
-            setLinks((prev) => [...prev, data]);
+            setLinks((prev) => {
+                const newLinks = [...prev, data];
+                // Keep sort order
+                return newLinks.sort((a, b) => {
+                    if (a.type === 'env' && b.type !== 'env') return -1;
+                    if (a.type !== 'env' && b.type === 'env') return 1;
+                    return 0;
+                });
+            });
             return data;
         } catch (err: any) {
             console.error('Error adding link:', err);
+            throw err;
+        }
+    };
+
+    const updateLink = async (id: string, updates: Partial<InsertLink>) => {
+        try {
+            const { data, error } = await supabase
+                .from('sitecue_links')
+                .update(updates)
+                .eq('id', id)
+                .select()
+                .single();
+
+            if (error) throw error;
+
+            setLinks((prev) => {
+                const newLinks = prev.map((l) => (l.id === id ? data : l));
+                // Re-sort
+                return newLinks.sort((a, b) => {
+                    if (a.type === 'env' && b.type !== 'env') return -1;
+                    if (a.type !== 'env' && b.type === 'env') return 1;
+                    return 0;
+                });
+            });
+            return data;
+        } catch (err: any) {
+            console.error('Error updating link:', err);
             throw err;
         }
     };
@@ -113,5 +155,5 @@ export function useQuickLinks(currentDomain: string | null) {
         }
     };
 
-    return { links, loading, error, addLink, deleteLink, refreshLinks: fetchLinks };
+    return { links, loading, error, addLink, updateLink, deleteLink, refreshLinks: fetchLinks };
 }
