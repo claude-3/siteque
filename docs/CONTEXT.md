@@ -37,6 +37,15 @@ Chrome拡張機能として動作し、現在開いているURLやドメイン�
 - `label`: text (例: 'DEV', 'PROD')
 - `color`: text (例: 'red', 'blue' - Tailwindクラス用マッピングキー)
 
+### `sitecue_links`
+- ドメインごとの「Quick Links」（関連リンク・環境切り替え）を保持するテーブル。
+- `user_id`: uuid (FK) - RLS必須
+- `domain`: text (リンクを表示する元のドメイン。ポート番号を含む `host` 形式。例: `localhost:3000`)
+- `target_url`: text (遷移先のURL)
+- `label`: text (リンクの表示名)
+- `type`: `'related'` | `'env'` (Check Constraint)
+  - `'related'`: 関連リンク。別タブ (`target="_blank"`) で開く。
+  - `'env'`: 環境切り替えリンク。現在のタブで開き、パス (`pathname` + `search`) を維持してドメインのみ差し替える。
 
 ## Development Guidelines
 1. **Atomic Design**: 機能追加は小さく分割し、1機能1コミットを心がける。
