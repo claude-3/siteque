@@ -260,6 +260,7 @@ function NotesUI({ session, onLogout }: { session: Session; onLogout: () => void
             toast.success('Cue added');
             setNewNote('');
             fetchNotes();
+            chrome.runtime.sendMessage({ type: 'REFRESH_BADGE' });
         } catch (error) {
             console.error('Failed to create note', error);
             toast.error('Failed to create note');
@@ -324,6 +325,7 @@ function NotesUI({ session, onLogout }: { session: Session; onLogout: () => void
             // ローカルのstateから除外
             setNotes(notes.filter(note => note.id !== id));
             toast.success('Cue deleted');
+            chrome.runtime.sendMessage({ type: 'REFRESH_BADGE' });
         } catch (error) {
             console.error('Failed to delete note', error);
             toast.error('Failed to delete note');
@@ -343,6 +345,7 @@ function NotesUI({ session, onLogout }: { session: Session; onLogout: () => void
             if (error) throw error;
 
             setNotes(notes.map(n => n.id === id ? { ...n, is_resolved: nextStatus } : n));
+            chrome.runtime.sendMessage({ type: 'REFRESH_BADGE' });
         } catch (error) {
             console.error('Failed to toggle resolved status', error);
             toast.error('Failed to update status');
