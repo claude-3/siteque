@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import toast, { Toaster } from 'react-hot-toast';
 import TextareaAutosize from 'react-textarea-autosize';
-import { Send, FileText, Loader2, Pencil, X, Check, Trash2, Info, AlertTriangle, Lightbulb, CheckSquare, Square, Pin, ExternalLink } from 'lucide-react';
+import { Send, FileText, Loader2, Pencil, X, Check, Trash2, Info, AlertTriangle, Lightbulb, CheckSquare, Square, Pin, ExternalLink, Star } from 'lucide-react';
 import type { Database } from '../../types/supabase';
 import { supabase } from './supabaseClient';
 import type { Session } from '@supabase/supabase-js';
@@ -218,23 +218,12 @@ function NotesUI({ session, onLogout }: { session: Session; onLogout: () => void
             const { data, error } = await supabase
                 .from('sitecue_notes')
                 .select('*')
-                .or(`and(url_pattern.eq.${scopeUrls.domain},scope.eq.domain),and(url_pattern.eq.${scopeUrls.exact},scope.eq.exact),is_pinned.eq.true`);
+                .or(`and(url_pattern.eq.${scopeUrls.domain},scope.eq.domain),and(url_pattern.eq.${scopeUrls.exact},scope.eq.exact),is_favorite.eq.true`);
 
             if (error) throw error;
 
-            // ソート: is_pinned (true) -> exact -> domain の順, 最後に created_at (desc)
-            const sortedNotes = (data || []).sort((a: Note, b: Note) => {
-                // 1. Pinned items first
-                if (a.is_pinned !== b.is_pinned) return a.is_pinned ? -1 : 1;
-
-                // 2. Scope priority (exact > domain)
-                if (a.scope !== b.scope) return a.scope === 'exact' ? -1 : 1;
-
-                // 3. Created date (newest first)
-                return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-            });
-
-            setNotes(sortedNotes);
+            // Sorting is handled at render time by splitting into two lists
+            setNotes(data || []);
         } catch (error) {
             console.error('Failed to fetch notes', error);
         } finally {
@@ -364,6 +353,26 @@ function NotesUI({ session, onLogout }: { session: Session; onLogout: () => void
         }
     };
 
+    // ⭐ お気に入り切り替え
+    const handleToggleFavorite = async (note: Note) => {
+        const nextStatus = !note.is_favorite;
+        try {
+            const { error } = await supabase
+                .from('sitecue_notes')
+                .update({ is_favorite: nextStatus })
+                .eq('id', note.id);
+
+            if (error) throw error;
+
+            // Update local state
+            setNotes(notes.map(n => n.id === note.id ? { ...n, is_favorite: nextStatus } : n));
+            toast.success(nextStatus ? 'Added to favorites' : 'Removed from favorites');
+        } catch (error) {
+            console.error('Failed to toggle favorite status', error);
+            toast.error('Failed to update status');
+        }
+    };
+
     // 📌 ピン留め切り替え
     const handleTogglePinned = async (note: Note) => {
         const nextStatus = !note.is_pinned;
@@ -375,23 +384,180 @@ function NotesUI({ session, onLogout }: { session: Session; onLogout: () => void
 
             if (error) throw error;
 
-            // Update local state and re-sort
-            const updatedNotes = notes.map(n => n.id === note.id ? { ...n, is_pinned: nextStatus } : n);
-
-            // Re-sort locally to reflect changes immediately
-            const resortedNotes = updatedNotes.sort((a, b) => {
-                if (a.is_pinned !== b.is_pinned) return a.is_pinned ? -1 : 1;
-                if (a.scope !== b.scope) return a.scope === 'exact' ? -1 : 1;
-                return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-            });
-
-            setNotes(resortedNotes);
+            // Update local state
+            // Sorting is handled at render time
+            setNotes(notes.map(n => n.id === note.id ? { ...n, is_pinned: nextStatus } : n));
             toast.success(nextStatus ? 'Pinned note' : 'Unpinned note');
         } catch (error) {
             console.error('Failed to toggle pinned status', error);
             toast.error('Failed to update status');
         }
     };
+
+    // 📝 Split notes into Favorites (Global) and Current Page (Local)
+    const filteredNotes = notes.filter(note => {
+        // 1. Note Type Filter
+        if (filterType !== 'all') {
+            const type = note.note_type || 'info';
+            if (type !== filterType) return false;
+        }
+        // 2. Resolved Filter
+        if (!showResolved && note.is_resolved) {
+            return false;
+        }
+        return true;
+    });
+
+    const favoriteNotes = filteredNotes.filter(n => n.is_favorite).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+    const currentScopeNotes = filteredNotes.filter(n => !n.is_favorite && (
+        (n.scope === 'domain' && n.url_pattern === (currentFullUrl ? getScopeUrls(currentFullUrl).domain : '')) ||
+        (n.scope === 'exact' && n.url_pattern === (currentFullUrl ? getScopeUrls(currentFullUrl).exact : ''))
+    )).sort((a, b) => {
+        // 1. Pinned items first (Local Pin)
+        if (a.is_pinned !== b.is_pinned) return a.is_pinned ? -1 : 1;
+        // 2. Scope priority (exact > domain)
+        if (a.scope !== b.scope) return a.scope === 'exact' ? -1 : 1;
+        // 3. Created date (newest first)
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    });
+
+    const renderNoteItem = (note: Note) => (
+        <div key={note.id} className={`bg-white p-3 rounded-lg border shadow-sm hover:shadow-md transition-shadow group relative ${note.note_type === 'alert' ? 'border-red-200 bg-red-50/10' : 'border-gray-200'} ${note.is_resolved ? 'opacity-60 grayscale-[0.5]' : ''}`}>
+            {editingId === note.id ? (
+                // ✏️ 編集モード
+                <div className="space-y-2">
+                    <div className="flex bg-gray-50 p-0.5 rounded-md w-fit mb-2">
+                        <button
+                            type="button"
+                            onClick={() => setEditType('info')}
+                            className={`p-1 rounded ${editType === 'info' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-400 hover:text-gray-600'}`}
+                            title="Info"
+                        >
+                            <Info className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setEditType('alert')}
+                            className={`p-1 rounded ${editType === 'alert' ? 'bg-white shadow-sm text-red-600' : 'text-gray-400 hover:text-gray-600'}`}
+                            title="Alert"
+                        >
+                            <AlertTriangle className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setEditType('idea')}
+                            className={`p-1 rounded ${editType === 'idea' ? 'bg-white shadow-sm text-yellow-600' : 'text-gray-400 hover:text-gray-600'}`}
+                            title="Idea"
+                        >
+                            <Lightbulb className="w-3.5 h-3.5" />
+                        </button>
+                    </div>
+                    <TextareaAutosize
+                        value={editContent}
+                        onChange={(e) => setEditContent(e.target.value)}
+                        className="w-full border border-gray-300 rounded p-2 text-sm focus:outline-none focus:ring-2 focus:ring-black/5 resize-none"
+                        minRows={3}
+                        autoFocus
+                        onKeyDown={(e) => {
+                            if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+                                e.preventDefault();
+                                handleUpdate(note.id);
+                            }
+                        }}
+                    />
+                    <div className="flex justify-end gap-2">
+                        <button
+                            onClick={cancelEditing}
+                            className="p-1 text-gray-400 hover:text-gray-600 rounded"
+                        >
+                            <X className="w-4 h-4" />
+                        </button>
+                        <button
+                            onClick={() => handleUpdate(note.id)}
+                            disabled={updating}
+                            className="p-1 bg-black text-white rounded hover:bg-gray-800 disabled:opacity-50"
+                        >
+                            {updating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                        </button>
+                    </div>
+                </div>
+            ) : (
+                // 👀 表示モード
+                <>
+                    <div className="flex gap-2">
+                        <button
+                            onClick={() => handleToggleResolved(note.id, note.is_resolved)}
+                            className={`mt-0.5 shrink-0 transition-colors ${note.is_resolved ? 'text-gray-500' : 'text-gray-300 hover:text-gray-400'}`}
+                            title={note.is_resolved ? "Mark as unresolved" : "Mark as resolved"}
+                        >
+                            {note.is_resolved ? <CheckSquare className="w-4 h-4" /> : <Square className="w-4 h-4" />}
+                        </button>
+                        <div className="mt-0.5 shrink-0">
+                            {note.note_type === 'alert' && <AlertTriangle className="w-4 h-4 text-red-500" />}
+                            {note.note_type === 'idea' && <Lightbulb className="w-4 h-4 text-yellow-500" />}
+                            {(note.note_type === 'info' || !note.note_type) && <Info className="w-4 h-4 text-blue-500" />}
+                        </div>
+                        <div className={`text-sm text-gray-800 whitespace-pre-wrap pr-6 flex-1 ${note.is_resolved ? 'line-through text-gray-500' : ''}`}>{note.content}</div>
+                    </div>
+                    <div className="text-[10px] text-gray-400 mt-2 flex justify-between items-center pl-6">
+                        <span className={`px-1.5 py-0.5 rounded ${note.scope === 'exact' ? 'bg-blue-50 text-blue-600' : 'bg-gray-100 text-gray-500'}`}>
+                            {note.scope === 'exact' ? 'Page' : 'Domain'}
+                        </span>
+                        <span>{new Date(note.created_at).toLocaleDateString()}</span>
+                    </div>
+
+                    {/* アクションボタン (ホバー時に出現) */}
+                    <div className="absolute top-2 right-2 flex gap-1 group-hover:opacity-100 transition-opacity opacity-0">
+                        <button
+                            onClick={() => handleToggleFavorite(note)}
+                            className={`p-1.5 rounded-full hover:bg-gray-100 transition-colors ${note.is_favorite ? 'text-yellow-500 fill-yellow-500 opacity-100' : 'text-gray-400 hover:text-yellow-500'}`}
+                            title={note.is_favorite ? "Remove from favorites" : "Add to favorites"}
+                        >
+                            <Star className={`w-3.5 h-3.5 ${note.is_favorite ? 'fill-current' : ''}`} />
+                        </button>
+                        <button
+                            onClick={() => handleTogglePinned(note)}
+                            className={`p-1.5 rounded-full hover:bg-gray-100 transition-colors ${note.is_pinned ? 'text-blue-600 bg-blue-50 opacity-100' : 'text-gray-400 hover:text-black'}`}
+                            title={note.is_pinned ? "Unpin note" : "Pin note"}
+                        >
+                            <Pin className={`w-3.5 h-3.5 ${note.is_pinned ? 'fill-current' : ''}`} />
+                        </button>
+                        <button
+                            onClick={() => startEditing(note)}
+                            className="p-1.5 text-gray-400 hover:text-black hover:bg-gray-100 rounded-full"
+                            title="Edit"
+                        >
+                            <Pencil className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                            onClick={() => handleDelete(note.id)}
+                            className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full"
+                            title="Delete"
+                        >
+                            <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                    </div>
+
+                    {/* 出典元リンク (現在のURLと一致しない場合) */}
+                    {note.url_pattern !== (note.scope === 'domain' ? getScopeUrls(currentFullUrl).domain : getScopeUrls(currentFullUrl).exact) && (
+                        <div className="mt-2 pl-6">
+                            <a
+                                href={`https://${note.url_pattern}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 text-[10px] text-gray-400 hover:text-blue-600 hover:underline transition-colors"
+                                title={`Open ${note.url_pattern}`}
+                            >
+                                <ExternalLink className="w-3 h-3" />
+                                via {note.url_pattern}
+                            </a>
+                        </div>
+                    )}
+                </>
+            )}
+        </div>
+    );
 
     return (
         <div className="w-full h-screen bg-gray-50 flex flex-col font-sans">
@@ -414,160 +580,46 @@ function NotesUI({ session, onLogout }: { session: Session; onLogout: () => void
                 setShowResolved={setShowResolved}
             />
 
-            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            <div className="flex-1 overflow-y-auto p-4 space-y-6">
                 {loading ? (
                     <div className="flex justify-center p-8">
                         <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
                     </div>
-                ) : notes.length === 0 ? (
+                ) : (favoriteNotes.length === 0 && currentScopeNotes.length === 0) ? (
                     <div className="text-center py-10 text-gray-400">
                         <FileText className="w-12 h-12 mx-auto mb-2 opacity-20" />
                         <p className="text-sm">No cues found for this site.</p>
                     </div>
                 ) : (
-                    notes
-                        .filter(note => {
-                            // 1. Note Type Filter
-                            if (filterType !== 'all') {
-                                // DBのnote_typeがnull/undefinedの場合は'info'として扱う
-                                const type = note.note_type || 'info';
-                                if (type !== filterType) return false;
-                            }
-                            // 2. Resolved Filter
-                            if (!showResolved && note.is_resolved) {
-                                return false;
-                            }
-                            return true;
-                        })
-                        .map((note) => (
-                            <div key={note.id} className={`bg-white p-3 rounded-lg border shadow-sm hover:shadow-md transition-shadow group relative ${note.note_type === 'alert' ? 'border-red-200 bg-red-50/10' : 'border-gray-200'} ${note.is_resolved ? 'opacity-60 grayscale-[0.5]' : ''}`}>
-                                {editingId === note.id ? (
-                                    // ✏️ 編集モード
-                                    <div className="space-y-2">
-                                        <div className="flex bg-gray-50 p-0.5 rounded-md w-fit mb-2">
-                                            <button
-                                                type="button"
-                                                onClick={() => setEditType('info')}
-                                                className={`p-1 rounded ${editType === 'info' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-400 hover:text-gray-600'}`}
-                                                title="Info"
-                                            >
-                                                <Info className="w-3.5 h-3.5" />
-                                            </button>
-                                            <button
-                                                type="button"
-                                                onClick={() => setEditType('alert')}
-                                                className={`p-1 rounded ${editType === 'alert' ? 'bg-white shadow-sm text-red-600' : 'text-gray-400 hover:text-gray-600'}`}
-                                                title="Alert"
-                                            >
-                                                <AlertTriangle className="w-3.5 h-3.5" />
-                                            </button>
-                                            <button
-                                                type="button"
-                                                onClick={() => setEditType('idea')}
-                                                className={`p-1 rounded ${editType === 'idea' ? 'bg-white shadow-sm text-yellow-600' : 'text-gray-400 hover:text-gray-600'}`}
-                                                title="Idea"
-                                            >
-                                                <Lightbulb className="w-3.5 h-3.5" />
-                                            </button>
-                                        </div>
-                                        <TextareaAutosize
-                                            value={editContent}
-                                            onChange={(e) => setEditContent(e.target.value)}
-                                            className="w-full border border-gray-300 rounded p-2 text-sm focus:outline-none focus:ring-2 focus:ring-black/5 resize-none"
-                                            minRows={3}
-                                            autoFocus
-                                            onKeyDown={(e) => {
-                                                if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
-                                                    e.preventDefault();
-                                                    handleUpdate(note.id);
-                                                }
-                                            }}
-                                        />
-                                        <div className="flex justify-end gap-2">
-                                            <button
-                                                onClick={cancelEditing}
-                                                className="p-1 text-gray-400 hover:text-gray-600 rounded"
-                                            >
-                                                <X className="w-4 h-4" />
-                                            </button>
-                                            <button
-                                                onClick={() => handleUpdate(note.id)}
-                                                disabled={updating}
-                                                className="p-1 bg-black text-white rounded hover:bg-gray-800 disabled:opacity-50"
-                                            >
-                                                {updating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-                                            </button>
-                                        </div>
-                                    </div>
-                                ) : (
-                                    // 👀 表示モード
-                                    <>
-                                        <div className="flex gap-2">
-                                            <button
-                                                onClick={() => handleToggleResolved(note.id, note.is_resolved)}
-                                                className={`mt-0.5 shrink-0 transition-colors ${note.is_resolved ? 'text-gray-500' : 'text-gray-300 hover:text-gray-400'}`}
-                                                title={note.is_resolved ? "Mark as unresolved" : "Mark as resolved"}
-                                            >
-                                                {note.is_resolved ? <CheckSquare className="w-4 h-4" /> : <Square className="w-4 h-4" />}
-                                            </button>
-                                            <div className="mt-0.5 shrink-0">
-                                                {note.note_type === 'alert' && <AlertTriangle className="w-4 h-4 text-red-500" />}
-                                                {note.note_type === 'idea' && <Lightbulb className="w-4 h-4 text-yellow-500" />}
-                                                {(note.note_type === 'info' || !note.note_type) && <Info className="w-4 h-4 text-blue-500" />}
-                                            </div>
-                                            <div className={`text-sm text-gray-800 whitespace-pre-wrap pr-6 flex-1 ${note.is_resolved ? 'line-through text-gray-500' : ''}`}>{note.content}</div>
-                                        </div>
-                                        <div className="text-[10px] text-gray-400 mt-2 flex justify-between items-center pl-6">
-                                            <span className={`px-1.5 py-0.5 rounded ${note.scope === 'exact' ? 'bg-blue-50 text-blue-600' : 'bg-gray-100 text-gray-500'}`}>
-                                                {note.scope === 'exact' ? 'Page' : 'Domain'}
-                                            </span>
-                                            <span>{new Date(note.created_at).toLocaleDateString()}</span>
-                                        </div>
-
-                                        {/* アクションボタン (ホバー時に出現) */}
-                                        <div className="absolute top-2 right-2 flex gap-1 group-hover:opacity-100 transition-opacity opacity-0">
-                                            <button
-                                                onClick={() => handleTogglePinned(note)}
-                                                className={`p-1.5 rounded-full hover:bg-gray-100 transition-colors ${note.is_pinned ? 'text-blue-600 bg-blue-50 opacity-100' : 'text-gray-400 hover:text-black'}`}
-                                                title={note.is_pinned ? "Unpin note" : "Pin note"}
-                                            >
-                                                <Pin className={`w-3.5 h-3.5 ${note.is_pinned ? 'fill-current' : ''}`} />
-                                            </button>
-                                            <button
-                                                onClick={() => startEditing(note)}
-                                                className="p-1.5 text-gray-400 hover:text-black hover:bg-gray-100 rounded-full"
-                                                title="Edit"
-                                            >
-                                                <Pencil className="w-3.5 h-3.5" />
-                                            </button>
-                                            <button
-                                                onClick={() => handleDelete(note.id)}
-                                                className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full"
-                                                title="Delete"
-                                            >
-                                                <Trash2 className="w-3.5 h-3.5" />
-                                            </button>
-                                        </div>
-
-                                        {/* 出典元リンク (ピン留めされていて、現在のURLと一致しない場合) */}
-                                        {note.is_pinned && note.url_pattern !== (note.scope === 'domain' ? getScopeUrls(currentFullUrl).domain : getScopeUrls(currentFullUrl).exact) && (
-                                            <div className="mt-2 pl-6">
-                                                <a
-                                                    href={`https://${note.url_pattern}`}
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
-                                                    className="inline-flex items-center gap-1 text-[10px] text-gray-400 hover:text-blue-600 hover:underline transition-colors"
-                                                    title={`Open ${note.url_pattern}`}
-                                                >
-                                                    <ExternalLink className="w-3 h-3" />
-                                                    via {note.url_pattern}
-                                                </a>
-                                            </div>
-                                        )}
-                                    </>
-                                )}
+                    <>
+                        {/* Favorites Section */}
+                        {favoriteNotes.length > 0 && (
+                            <div className="space-y-3">
+                                <div className="flex items-center gap-2 text-xs font-semibold text-gray-400 uppercase tracking-wider px-1">
+                                    <Star className="w-3 h-3 text-yellow-500 fill-current" />
+                                    <span>Favorites</span>
+                                </div>
+                                <div className="space-y-3">
+                                    {favoriteNotes.map(renderNoteItem)}
+                                </div>
+                                {currentScopeNotes.length > 0 && <hr className="border-gray-200" />}
                             </div>
-                        ))
+                        )}
+
+                        {/* Current Page Section */}
+                        {currentScopeNotes.length > 0 && (
+                            <div className="space-y-3">
+                                {favoriteNotes.length > 0 && (
+                                    <div className="flex items-center gap-2 text-xs font-semibold text-gray-400 uppercase tracking-wider px-1">
+                                        <span>Current Page</span>
+                                    </div>
+                                )}
+                                <div className="space-y-3">
+                                    {currentScopeNotes.map(renderNoteItem)}
+                                </div>
+                            </div>
+                        )}
+                    </>
                 )}
             </div>
 
