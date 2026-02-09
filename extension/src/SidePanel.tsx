@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import toast, { Toaster } from 'react-hot-toast';
 import TextareaAutosize from 'react-textarea-autosize';
-import { Send, FileText, Loader2, Pencil, X, Check, Trash2, Info, AlertTriangle, Lightbulb, CheckSquare, Square, Pin, ExternalLink, Star } from 'lucide-react';
+import { Send, FileText, Loader2, X, Check, Trash2, Info, AlertTriangle, Lightbulb, CheckSquare, Square, Pin, ExternalLink, Star, Edit2 } from 'lucide-react';
 import type { Database } from '../../types/supabase';
 import { supabase } from './supabaseClient';
 import type { Session } from '@supabase/supabase-js';
@@ -485,6 +485,24 @@ function NotesUI({ session, onLogout }: { session: Session; onLogout: () => void
             ) : (
                 // 👀 表示モード
                 <>
+                    {/* Top Right: Status Icons (Always Visible) */}
+                    <div className="absolute top-3 right-3 flex gap-1.5">
+                        <button
+                            onClick={() => handleToggleFavorite(note)}
+                            className={`hover:scale-110 transition-transform ${note.is_favorite ? 'text-yellow-500 fill-current' : 'text-gray-300 hover:text-gray-500'}`}
+                            title={note.is_favorite ? "Remove from favorites" : "Add to favorites"}
+                        >
+                            <Star className={`w-3.5 h-3.5 ${note.is_favorite ? 'fill-current' : ''}`} />
+                        </button>
+                        <button
+                            onClick={() => handleTogglePinned(note)}
+                            className={`hover:scale-110 transition-transform ${note.is_pinned ? 'text-indigo-500 fill-current' : 'text-gray-300 hover:text-gray-500'}`}
+                            title={note.is_pinned ? "Unpin note" : "Pin note"}
+                        >
+                            <Pin className={`w-3.5 h-3.5 ${note.is_pinned ? 'fill-current' : ''}`} />
+                        </button>
+                    </div>
+
                     <div className="flex gap-2">
                         <button
                             onClick={() => handleToggleResolved(note.id, note.is_resolved)}
@@ -498,41 +516,30 @@ function NotesUI({ session, onLogout }: { session: Session; onLogout: () => void
                             {note.note_type === 'idea' && <Lightbulb className="w-4 h-4 text-yellow-500" />}
                             {(note.note_type === 'info' || !note.note_type) && <Info className="w-4 h-4 text-blue-500" />}
                         </div>
-                        <div className={`text-sm text-gray-800 whitespace-pre-wrap pr-6 flex-1 ${note.is_resolved ? 'line-through text-gray-500' : ''}`}>{note.content}</div>
+                        {/* Title/Content Area with PR to avoid overlap */}
+                        <div className={`text-sm text-gray-800 whitespace-pre-wrap pr-14 flex-1 ${note.is_resolved ? 'line-through text-gray-500' : ''}`}>{note.content}</div>
                     </div>
-                    <div className="text-[10px] text-gray-400 mt-2 flex justify-between items-center pl-6">
+
+                    {/* Left Bottom: Metadata */}
+                    <div className="text-[10px] text-gray-400 mt-2 flex justify-between items-center pl-6 max-w-[70%]">
                         <span className={`px-1.5 py-0.5 rounded ${note.scope === 'exact' ? 'bg-blue-50 text-blue-600' : 'bg-gray-100 text-gray-500'}`}>
                             {note.scope === 'exact' ? 'Page' : 'Domain'}
                         </span>
                         <span>{new Date(note.created_at).toLocaleDateString()}</span>
                     </div>
 
-                    {/* アクションボタン (ホバー時に出現) */}
-                    <div className="absolute top-2 right-2 flex gap-1 group-hover:opacity-100 transition-opacity opacity-0">
-                        <button
-                            onClick={() => handleToggleFavorite(note)}
-                            className={`p-1.5 rounded-full hover:bg-gray-100 transition-colors ${note.is_favorite ? 'text-yellow-500 fill-yellow-500 opacity-100' : 'text-gray-400 hover:text-yellow-500'}`}
-                            title={note.is_favorite ? "Remove from favorites" : "Add to favorites"}
-                        >
-                            <Star className={`w-3.5 h-3.5 ${note.is_favorite ? 'fill-current' : ''}`} />
-                        </button>
-                        <button
-                            onClick={() => handleTogglePinned(note)}
-                            className={`p-1.5 rounded-full hover:bg-gray-100 transition-colors ${note.is_pinned ? 'text-blue-600 bg-blue-50 opacity-100' : 'text-gray-400 hover:text-black'}`}
-                            title={note.is_pinned ? "Unpin note" : "Pin note"}
-                        >
-                            <Pin className={`w-3.5 h-3.5 ${note.is_pinned ? 'fill-current' : ''}`} />
-                        </button>
+                    {/* Right Bottom: Action Icons (Hover only) */}
+                    <div className="absolute bottom-3 right-3 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-white/90 pl-2 rounded-l-md">
                         <button
                             onClick={() => startEditing(note)}
-                            className="p-1.5 text-gray-400 hover:text-black hover:bg-gray-100 rounded-full"
+                            className="text-gray-400 hover:text-gray-700 transition-colors"
                             title="Edit"
                         >
-                            <Pencil className="w-3.5 h-3.5" />
+                            <Edit2 className="w-3.5 h-3.5" />
                         </button>
                         <button
                             onClick={() => handleDelete(note.id)}
-                            className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full"
+                            className="text-gray-400 hover:text-red-500 transition-colors"
                             title="Delete"
                         >
                             <Trash2 className="w-3.5 h-3.5" />
