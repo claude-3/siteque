@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import toast, { Toaster } from 'react-hot-toast';
 import TextareaAutosize from 'react-textarea-autosize';
-import { Send, FileText, Loader2, Pencil, X, Check, Trash2, Info, AlertTriangle, Lightbulb, CheckSquare, Square } from 'lucide-react';
+import { Send, FileText, Loader2, Pencil, X, Check, Trash2, Info, AlertTriangle, Lightbulb, CheckSquare, Square, Pin, ExternalLink } from 'lucide-react';
 import type { Database } from '../../types/supabase';
 import { supabase } from './supabaseClient';
 import type { Session } from '@supabase/supabase-js';
@@ -205,21 +205,33 @@ function NotesUI({ session, onLogout }: { session: Session; onLogout: () => void
             const scopeUrls = getScopeUrls(currentFullUrl);
 
             // domainとexactの両方のノートを取得
-            // or条件で取得: (url_pattern = domain AND scope = domain) OR (url_pattern = exact AND scope = exact)
-            // SQL injection is not possible here as library handles escaping, but logic-wise:
-            // .or(`and(url_pattern.eq.${scopeUrls.domain},scope.eq.domain),and(url_pattern.eq.${scopeUrls.exact},scope.eq.exact)`)
+            // Pinned notes should be fetched regardless of URL match or scope
+            // We want: (match current URL) OR (is_pinned = true)
+            // match current URL = (url_pattern = domain AND scope = domain) OR (url_pattern = exact AND scope = exact)
+
+            // Construct the query:
+            // or conditions:
+            // 1. and(url_pattern.eq.${scopeUrls.domain},scope.eq.domain)
+            // 2. and(url_pattern.eq.${scopeUrls.exact},scope.eq.exact)
+            // 3. is_pinned.eq.true
 
             const { data, error } = await supabase
                 .from('sitecue_notes')
                 .select('*')
-                .or(`and(url_pattern.eq.${scopeUrls.domain},scope.eq.domain),and(url_pattern.eq.${scopeUrls.exact},scope.eq.exact)`);
+                .or(`and(url_pattern.eq.${scopeUrls.domain},scope.eq.domain),and(url_pattern.eq.${scopeUrls.exact},scope.eq.exact),is_pinned.eq.true`);
 
             if (error) throw error;
 
-            // ソート: exact -> domain の順
+            // ソート: is_pinned (true) -> exact -> domain の順, 最後に created_at (desc)
             const sortedNotes = (data || []).sort((a: Note, b: Note) => {
-                if (a.scope === b.scope) return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-                return a.scope === 'exact' ? -1 : 1;
+                // 1. Pinned items first
+                if (a.is_pinned !== b.is_pinned) return a.is_pinned ? -1 : 1;
+
+                // 2. Scope priority (exact > domain)
+                if (a.scope !== b.scope) return a.scope === 'exact' ? -1 : 1;
+
+                // 3. Created date (newest first)
+                return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
             });
 
             setNotes(sortedNotes);
@@ -348,6 +360,35 @@ function NotesUI({ session, onLogout }: { session: Session; onLogout: () => void
             chrome.runtime.sendMessage({ type: 'REFRESH_BADGE' });
         } catch (error) {
             console.error('Failed to toggle resolved status', error);
+            toast.error('Failed to update status');
+        }
+    };
+
+    // 📌 ピン留め切り替え
+    const handleTogglePinned = async (note: Note) => {
+        const nextStatus = !note.is_pinned;
+        try {
+            const { error } = await supabase
+                .from('sitecue_notes')
+                .update({ is_pinned: nextStatus })
+                .eq('id', note.id);
+
+            if (error) throw error;
+
+            // Update local state and re-sort
+            const updatedNotes = notes.map(n => n.id === note.id ? { ...n, is_pinned: nextStatus } : n);
+
+            // Re-sort locally to reflect changes immediately
+            const resortedNotes = updatedNotes.sort((a, b) => {
+                if (a.is_pinned !== b.is_pinned) return a.is_pinned ? -1 : 1;
+                if (a.scope !== b.scope) return a.scope === 'exact' ? -1 : 1;
+                return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+            });
+
+            setNotes(resortedNotes);
+            toast.success(nextStatus ? 'Pinned note' : 'Unpinned note');
+        } catch (error) {
+            console.error('Failed to toggle pinned status', error);
             toast.error('Failed to update status');
         }
     };
@@ -484,7 +525,14 @@ function NotesUI({ session, onLogout }: { session: Session; onLogout: () => void
                                         </div>
 
                                         {/* アクションボタン (ホバー時に出現) */}
-                                        <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <div className="absolute top-2 right-2 flex gap-1 group-hover:opacity-100 transition-opacity opacity-0">
+                                            <button
+                                                onClick={() => handleTogglePinned(note)}
+                                                className={`p-1.5 rounded-full hover:bg-gray-100 transition-colors ${note.is_pinned ? 'text-blue-600 bg-blue-50 opacity-100' : 'text-gray-400 hover:text-black'}`}
+                                                title={note.is_pinned ? "Unpin note" : "Pin note"}
+                                            >
+                                                <Pin className={`w-3.5 h-3.5 ${note.is_pinned ? 'fill-current' : ''}`} />
+                                            </button>
                                             <button
                                                 onClick={() => startEditing(note)}
                                                 className="p-1.5 text-gray-400 hover:text-black hover:bg-gray-100 rounded-full"
@@ -500,6 +548,22 @@ function NotesUI({ session, onLogout }: { session: Session; onLogout: () => void
                                                 <Trash2 className="w-3.5 h-3.5" />
                                             </button>
                                         </div>
+
+                                        {/* 出典元リンク (ピン留めされていて、現在のURLと一致しない場合) */}
+                                        {note.is_pinned && note.url_pattern !== (note.scope === 'domain' ? getScopeUrls(currentFullUrl).domain : getScopeUrls(currentFullUrl).exact) && (
+                                            <div className="mt-2 pl-6">
+                                                <a
+                                                    href={`https://${note.url_pattern}`}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="inline-flex items-center gap-1 text-[10px] text-gray-400 hover:text-blue-600 hover:underline transition-colors"
+                                                    title={`Open ${note.url_pattern}`}
+                                                >
+                                                    <ExternalLink className="w-3 h-3" />
+                                                    via {note.url_pattern}
+                                                </a>
+                                            </div>
+                                        )}
                                     </>
                                 )}
                             </div>

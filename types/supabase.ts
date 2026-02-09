@@ -20,6 +20,7 @@ export interface Database {
                     is_resolved: boolean
                     created_at: string
                     updated_at: string | null
+                    is_pinned: boolean
                 }
                 Insert: {
                     id?: string
@@ -31,6 +32,7 @@ export interface Database {
                     is_resolved?: boolean
                     created_at?: string
                     updated_at?: string | null
+                    is_pinned?: boolean
                 }
                 Update: {
                     id?: string
@@ -42,6 +44,7 @@ export interface Database {
                     is_resolved?: boolean
                     created_at?: string
                     updated_at?: string | null
+                    is_pinned?: boolean
                 }
                 Relationships: [
                     {
