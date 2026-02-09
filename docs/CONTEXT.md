@@ -23,6 +23,10 @@ Chrome拡張機能として動作し、現在開いているURLやドメイン�
 - `scope`: `'domain'` | `'exact'` (Check Constraint)
 - `note_type`: `'info'` | `'alert'` | `'idea'` (Check Constraint, Default: 'info')
 - `is_resolved`: `boolean` (Default: `false`)
+- `is_pinned`: `boolean` (Default: `false`)  <-- 追加
+  - **Local Context**: そのページ（URL）に関連する重要なメモとして、リスト最上位に固定表示する。
+- `is_favorite`: `boolean` (Default: `false`) <-- 追加
+  - **Global Context**: どのページを開いていても参照できるよう、専用の「Favorites」セクションに常時表示する。
 - `url_pattern`:
   - **Normalization Rules**:
     - Protocol (`https://`, `http://`) は必ず除去する。
