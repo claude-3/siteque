@@ -521,7 +521,7 @@ function NotesUI({ session, onLogout }: { session: Session; onLogout: () => void
                     </div>
 
                     {/* Left Bottom: Metadata */}
-                    <div className="text-[10px] text-gray-400 mt-2 flex justify-between items-center pl-6 max-w-[70%]">
+                    <div className="text-[10px] text-gray-400 mt-2 flex items-center gap-2 pl-6 max-w-[calc(100%-3rem)]">
                         <span className={`px-1.5 py-0.5 rounded ${note.scope === 'exact' ? 'bg-blue-50 text-blue-600' : 'bg-gray-100 text-gray-500'}`}>
                             {note.scope === 'exact' ? 'Page' : 'Domain'}
                         </span>
