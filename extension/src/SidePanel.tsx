@@ -218,7 +218,7 @@ function NotesUI({ session, onLogout }: { session: Session; onLogout: () => void
             const { data, error } = await supabase
                 .from('sitecue_notes')
                 .select('*')
-                .or(`and(url_pattern.eq.${scopeUrls.domain},scope.eq.domain),and(url_pattern.eq.${scopeUrls.exact},scope.eq.exact),is_favorite.eq.true`);
+                .or(`and(url_pattern.eq."${scopeUrls.domain}",scope.eq.domain),and(url_pattern.eq."${scopeUrls.exact}",scope.eq.exact),is_favorite.eq.true`);
 
             if (error) throw error;
 

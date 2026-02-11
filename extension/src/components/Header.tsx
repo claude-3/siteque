@@ -41,7 +41,7 @@ export default function Header({ url, domain, session, onLogout }: HeaderProps) 
             .from('sitecue_domain_settings')
             .select('*')
             .eq('domain', domain)
-            .single();
+            .maybeSingle();
 
         if (data) {
             setSettings({ color: data.color ?? "", label: data.label ?? "" });

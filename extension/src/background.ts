@@ -57,7 +57,8 @@ async function updateBadge(tabId: number, url: string) {
         // let's try the .or() syntax.
 
         // Filter: (scope.eq.domain,url_pattern.eq.{hostname}),(scope.eq.exact,url_pattern.eq.{fullPath})
-        const orQuery = `and(scope.eq.domain,url_pattern.eq.${hostname}),and(scope.eq.exact,url_pattern.eq.${fullPath})`;
+        // We MUST quote the values to handle special characters like commas.
+        const orQuery = `and(scope.eq.domain,url_pattern.eq."${hostname}"),and(scope.eq.exact,url_pattern.eq."${fullPath}")`;
 
         const { count, error } = await supabase
             .from('sitecue_notes')
@@ -118,5 +119,98 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
 
         // Also handy to return something
         sendResponse({ status: 'ok' });
+    } else if (message.type === 'TEST_SESSION_REFRESH') {
+        // Trigger manual session refresh test
+        (self as any).testSessionRefresh?.();
+        sendResponse({ status: 'test_started' });
     }
 });
+
+// --- Session Auto-Refresh & Monitoring ---
+
+/**
+ * Checks if the current session is close to expiring (within 5 minutes)
+ * and refreshes it if necessary.
+ */
+async function checkSession() {
+    console.log("[Session Check] Checking session status...");
+    const { data: { session }, error } = await supabase.auth.getSession();
+
+    if (error || !session) {
+        console.log("[Session Check] No active session.");
+        return;
+    }
+
+    const expiresAt = session.expires_at || 0; // unix timestamp in seconds
+    const now = Math.floor(Date.now() / 1000);
+    const timeRemaining = expiresAt - now;
+
+    console.log(`[Session Check] Expires in: ${timeRemaining}s`);
+
+    // If expires in less than 5 minutes (300s), refresh it
+    if (timeRemaining < 300) {
+        console.log("[Session Check] Session expiring soon... Refreshing...");
+        const { data, error: refreshError } = await supabase.auth.refreshSession();
+
+        if (refreshError) {
+            console.error("[Session Check] Refresh failed:", refreshError);
+        } else {
+            console.log("[Session Check] Session successfully refreshed!", data.session?.expires_at);
+        }
+    }
+}
+
+// Monitor auth state changes (Logging)
+supabase.auth.onAuthStateChange((event, session) => {
+    console.log(`[Auth Debug] Event: ${event}`);
+    if (session) {
+        const expiresAt = new Date((session.expires_at || 0) * 1000).toLocaleString();
+        console.log(`[Auth Debug] Session expires at: ${expiresAt}`);
+    }
+});
+
+// Run checkSession every 1 minute
+setInterval(checkSession, 60 * 1000);
+
+/**
+ * Manually trigger a session refresh test.
+ * call this from the DevTools console: chrome.runtime.sendMessage({ type: 'TEST_SESSION_REFRESH' })
+ */
+(self as any).testSessionRefresh = async () => {
+    console.log("[Test] Starting session refresh test...");
+
+    const { data: { session }, error } = await supabase.auth.getSession();
+
+    if (error || !session) {
+        console.error("[Test] No active session to test with.", error);
+        return;
+    }
+
+    // 1. Set a fake session that expires in 5 seconds
+    const currentTimestamp = Math.floor(Date.now() / 1000);
+    const newExpiresAt = currentTimestamp + 5;
+
+    const fakeExpiringSession = {
+        ...session,
+        expires_at: newExpiresAt,
+        expires_in: 5
+    };
+
+    console.log(`[Test] Setting local session to expire in 5 seconds (${new Date(newExpiresAt * 1000).toLocaleString()})...`);
+
+    // Apply the fake session locally
+    const { error: setErrors } = await supabase.auth.setSession(fakeExpiringSession);
+
+    if (setErrors) {
+        console.error("[Test] Failed to set expiring session:", setErrors);
+        return;
+    }
+
+    console.log("[Test] Wrapper session set. Waiting for auto-refresh...");
+
+    // 2. Force the check to run after 6 seconds (to simulate the interval hitting)
+    setTimeout(() => {
+        console.log("[Test] 6 seconds passed. Forcing checkSession()...");
+        checkSession();
+    }, 6000);
+};
