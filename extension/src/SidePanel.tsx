@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import toast, { Toaster } from 'react-hot-toast';
 import TextareaAutosize from 'react-textarea-autosize';
-import { Send, FileText, Loader2, X, Check, Trash2, Info, AlertTriangle, Lightbulb, CheckSquare, Square, Pin, ExternalLink, Star, Edit2, Ghost } from 'lucide-react';
+import { Send, Loader2, X, Check, Trash2, Info, AlertTriangle, Lightbulb, CheckSquare, Square, Pin, ExternalLink, Star, Edit2, Ghost } from 'lucide-react';
 import type { Database } from '../../types/supabase';
 import { supabase } from './supabaseClient';
 import type { Session } from '@supabase/supabase-js';
