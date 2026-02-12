@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import toast, { Toaster } from 'react-hot-toast';
 import TextareaAutosize from 'react-textarea-autosize';
-import { Send, FileText, Loader2, X, Check, Trash2, Info, AlertTriangle, Lightbulb, CheckSquare, Square, Pin, ExternalLink, Star, Edit2 } from 'lucide-react';
+import { Send, FileText, Loader2, X, Check, Trash2, Info, AlertTriangle, Lightbulb, CheckSquare, Square, Pin, ExternalLink, Star, Edit2, Ghost } from 'lucide-react';
 import type { Database } from '../../types/supabase';
 import { supabase } from './supabaseClient';
 import type { Session } from '@supabase/supabase-js';
@@ -135,6 +135,7 @@ function NotesUI({ session, onLogout }: { session: Session; onLogout: () => void
     // 🔍 フィルタリング用ステート
     const [filterType, setFilterType] = useState<'all' | 'info' | 'alert' | 'idea'>('all');
     const [showResolved, setShowResolved] = useState(false);
+    const textareaRef = useRef<HTMLTextAreaElement>(null);
 
     // ✅ 安全なURL取得 (修正済み)
     useEffect(() => {
@@ -593,9 +594,15 @@ function NotesUI({ session, onLogout }: { session: Session; onLogout: () => void
                         <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
                     </div>
                 ) : (favoriteNotes.length === 0 && currentScopeNotes.length === 0) ? (
-                    <div className="text-center py-10 text-gray-400">
-                        <FileText className="w-12 h-12 mx-auto mb-2 opacity-20" />
-                        <p className="text-sm">No cues found for this site.</p>
+                    <div className="flex flex-col items-center justify-center py-10 text-center">
+                        <div className="bg-gray-100 p-4 rounded-full mb-4">
+                            <Ghost className="w-8 h-8 text-gray-400" />
+                        </div>
+                        <h3 className="text-sm font-medium text-gray-900 mb-1">No notes for this page yet</h3>
+                        <p className="text-xs text-gray-500 mb-4 max-w-[200px]">
+                            Capture your thoughts for this page.
+                        </p>
+
                     </div>
                 ) : (
                     <>
@@ -687,6 +694,7 @@ function NotesUI({ session, onLogout }: { session: Session; onLogout: () => void
 
                 <form onSubmit={handleSubmit} className="flex gap-2 items-end">
                     <TextareaAutosize
+                        ref={textareaRef}
                         value={newNote}
                         onChange={(e) => setNewNote(e.target.value)}
                         placeholder={`Add a cue to ${selectedScope === 'domain' ? 'this domain' : 'this page'}...`}
