@@ -80,7 +80,7 @@ export default function SidePanel() {
   if (sessionLoading) {
     return (
       <div className="w-full h-screen bg-gray-50 flex flex-col items-center justify-center font-sans">
-        <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
+        <Loader2 className="w-8 h-8 animate-spin text-gray-500" />
       </div>
     );
   }
@@ -89,17 +89,17 @@ export default function SidePanel() {
     return (
       <div className="w-full h-screen bg-gray-50 flex flex-col items-center justify-center p-6 font-sans">
         <div className="w-full max-w-xs bg-white p-6 rounded-lg shadow-md border border-gray-200">
-          <h1 className="text-xl font-bold text-center mb-6 text-neutral-700">
+          <h1 className="text-xl font-bold text-center mb-6 text-neutral-800">
             SiteCue Login
           </h1>
           {authError && (
-            <div className="text-red-500 text-xs mb-4 text-center">
+            <div className="text-rose-400 text-xs mb-4 text-center">
               {authError}
             </div>
           )}
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
-              <label className="block text-xs font-medium text-neutral-700 mb-1">
+              <label className="block text-xs font-medium text-neutral-800 mb-1">
                 Email
               </label>
               <input
@@ -111,7 +111,7 @@ export default function SidePanel() {
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-neutral-700 mb-1">
+              <label className="block text-xs font-medium text-neutral-800 mb-1">
                 Password
               </label>
               <input
@@ -125,7 +125,7 @@ export default function SidePanel() {
             <button
               type="submit"
               disabled={authLoading}
-              className="w-full bg-black text-white py-2 rounded text-sm hover:bg-neutral-700 transition-colors disabled:opacity-50"
+              className="cursor-pointer w-full bg-black text-white py-2 rounded text-sm hover:bg-neutral-800 transition-colors disabled:opacity-50"
             >
               {authLoading ? (
                 <Loader2 className="w-4 h-4 animate-spin mx-auto" />
@@ -522,12 +522,15 @@ function NotesUI({
   const renderNoteItem = (note: Note) => {
     // 🎨 Color Logic (No Border, Restore Icon Colors)
     // Base: white, border-gray-200, shadow-sm
-    let iconColor = "text-blue-300";
+    let iconBgColor = "bg-blue-400";
+    let iconTextColor = "text-white";
 
     if (note.note_type === "alert") {
-      iconColor = "text-red-300";
+      iconBgColor = "bg-rose-400";
+      iconTextColor = "text-white";
     } else if (note.note_type === "idea") {
-      iconColor = "text-yellow-300";
+      iconBgColor = "bg-amber-400";
+      iconTextColor = "text-white";
     }
 
     // Resolved Styling
@@ -547,7 +550,7 @@ function NotesUI({
               <button
                 type="button"
                 onClick={() => setEditType("info")}
-                className={`p-1 rounded ${editType === "info" ? "bg-white shadow-sm text-blue-600" : "text-gray-400 hover:text-gray-600"}`}
+                className={`cursor-pointer p-1 rounded ${editType === "info" ? "bg-blue-400 shadow-sm text-white" : "text-gray-400 hover:text-blue-500"}`}
                 title="Info"
               >
                 <Info className="w-3.5 h-3.5" />
@@ -555,7 +558,7 @@ function NotesUI({
               <button
                 type="button"
                 onClick={() => setEditType("alert")}
-                className={`p-1 rounded ${editType === "alert" ? "bg-white shadow-sm text-red-600" : "text-gray-400 hover:text-gray-600"}`}
+                className={`cursor-pointer p-1 rounded ${editType === "alert" ? "bg-rose-400 shadow-sm text-white" : "text-gray-400 hover:text-rose-500"}`}
                 title="Alert"
               >
                 <AlertTriangle className="w-3.5 h-3.5" />
@@ -563,7 +566,7 @@ function NotesUI({
               <button
                 type="button"
                 onClick={() => setEditType("idea")}
-                className={`p-1 rounded ${editType === "idea" ? "bg-white shadow-sm text-yellow-600" : "text-gray-400 hover:text-gray-600"}`}
+                className={`cursor-pointer p-1 rounded ${editType === "idea" ? "bg-amber-400 shadow-sm text-white" : "text-gray-400 hover:text-amber-500"}`}
                 title="Idea"
               >
                 <Lightbulb className="w-3.5 h-3.5" />
@@ -585,14 +588,14 @@ function NotesUI({
             <div className="flex justify-end gap-2">
               <button
                 onClick={cancelEditing}
-                className="p-1 text-gray-400 hover:text-gray-600 rounded"
+                className="cursor-pointer p-1 text-gray-400 hover:text-gray-600 rounded"
               >
                 <X className="w-4 h-4" />
               </button>
               <button
                 onClick={() => handleUpdate(note.id)}
                 disabled={updating}
-                className="p-1 bg-black text-white rounded hover:bg-gray-700 disabled:opacity-50"
+                className="cursor-pointer p-1 bg-black text-white rounded hover:bg-neutral-600 disabled:opacity-50"
               >
                 {updating ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
@@ -607,20 +610,20 @@ function NotesUI({
           <div className="flex items-start gap-3">
             {/* Left Column: Icon + Checkbox (Vertical Stack) */}
             <div className="flex flex-col items-center gap-2 pt-0 min-w-6">
-              <div className="shrink-0">
+              <div className={`shrink-0 ${iconBgColor} p-0.5 rounded`}>
                 {note.note_type === "alert" && (
-                  <AlertTriangle className={`w-5 h-5 ${iconColor}`} />
+                  <AlertTriangle className={`w-4 h-4 ${iconTextColor}`} />
                 )}
                 {note.note_type === "idea" && (
-                  <Lightbulb className={`w-5 h-5 ${iconColor}`} />
+                  <Lightbulb className={`w-4 h-4 ${iconTextColor}`} />
                 )}
                 {(note.note_type === "info" || !note.note_type) && (
-                  <Info className={`w-5 h-5 ${iconColor}`} />
+                  <Info className={`w-4 h-4 ${iconTextColor}`} />
                 )}
               </div>
               <button
                 onClick={() => handleToggleResolved(note.id, note.is_resolved)}
-                className={`shrink-0 transition-colors ${note.is_resolved ? "text-neutral-500" : "text-neutral-300 hover:text-neutral-400"}`}
+                className={`cursor-pointer shrink-0 transition-colors ${note.is_resolved ? "text-neutral-500" : "text-neutral-300 hover:text-neutral-400"}`}
                 title={
                   note.is_resolved ? "Mark as unresolved" : "Mark as resolved"
                 }
@@ -639,7 +642,7 @@ function NotesUI({
               <div className="absolute top-3 right-3 flex gap-1.5 ">
                 <button
                   onClick={() => handleToggleFavorite(note)}
-                  className={`hover:scale-110 transition-transform ${note.is_favorite ? "text-neutral-700 fill-current" : "text-neutral-300 hover:text-neutral-500"}`}
+                  className={`cursor-pointer hover:scale-110 transition-transform ${note.is_favorite ? "text-neutral-800 fill-current" : "text-neutral-300 hover:text-neutral-500"}`}
                   title={
                     note.is_favorite
                       ? "Remove from favorites"
@@ -652,7 +655,7 @@ function NotesUI({
                 </button>
                 <button
                   onClick={() => handleTogglePinned(note)}
-                  className={`hover:scale-110 transition-transform ${note.is_pinned ? "text-neutral-700 fill-current" : "text-neutral-300 hover:text-neutral-500"}`}
+                  className={`cursor-pointer hover:scale-110 transition-transform ${note.is_pinned ? "text-neutral-800 fill-current" : "text-neutral-300 hover:text-neutral-500"}`}
                   title={note.is_pinned ? "Unpin note" : "Pin note"}
                 >
                   <Pin
@@ -663,7 +666,7 @@ function NotesUI({
 
               {/* Content */}
               <div
-                className={`text-sm whitespace-pre-wrap pr-8 mb-2 ${note.is_resolved ? "line-through text-neutral-500" : "text-neutral-700"}`}
+                className={`text-sm whitespace-pre-wrap pr-8 mb-2 ${note.is_resolved ? "line-through text-neutral-500" : "text-neutral-800"}`}
               >
                 {note.content}
               </div>
@@ -685,14 +688,14 @@ function NotesUI({
             <div className="absolute bottom-3 right-3 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-white/90 pl-2 rounded-l-md">
               <button
                 onClick={() => startEditing(note)}
-                className="text-neutral-300 hover:text-neutral-700 transition-colors"
+                className="cursor-pointer text-neutral-300 hover:text-neutral-800 transition-colors"
                 title="Edit"
               >
                 <Edit2 className="w-3.5 h-3.5" />
               </button>
               <button
                 onClick={() => handleDelete(note.id)}
-                className="text-neutral-300 hover:text-red-500 transition-colors"
+                className="cursor-pointer text-neutral-300 hover:text-rose-400 transition-colors"
                 title="Delete"
               >
                 <Trash2 className="w-3.5 h-3.5" />
@@ -709,7 +712,7 @@ function NotesUI({
                   href={`https://${note.url_pattern}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 text-[10px] text-neutral-300 hover:text-blue-500 hover:underline transition-colors"
+                  className="inline-flex items-center gap-1 text-[10px] text-neutral-300 hover:text-blue-400 hover:underline transition-colors"
                   title={`Open ${note.url_pattern}`}
                 >
                   <ExternalLink className="w-3 h-3" />
@@ -812,64 +815,64 @@ function NotesUI({
         {/* スコープ選択 */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4 text-xs">
-            <label className="flex items-center gap-1.5 cursor-pointer text-neutral-600 hover:text-black">
+            <label className="flex items-center gap-1.5 cursor-pointer text-neutral-800 hover:text-black">
               <input
                 type="radio"
                 name="scope"
                 checked={selectedScope === "domain"}
                 onChange={() => setSelectedScope("domain")}
-                className="accent-neutral-700 focus:ring-neutral-700"
+                className="accent-neutral-800 focus:ring-neutral-800"
               />
               <span>Domain</span>
             </label>
-            <label className="flex items-center gap-1.5 cursor-pointer text-neutral-600 hover:text-black">
+            <label className="flex items-center gap-1.5 cursor-pointer text-neutral-800 hover:text-black">
               <input
                 type="radio"
                 name="scope"
                 checked={selectedScope === "exact"}
                 onChange={() => setSelectedScope("exact")}
-                className="accent-neutral-700 focus:ring-neutral-700"
+                className="accent-neutral-800 focus:ring-neutral-800"
               />
               <span>This Page</span>
             </label>
           </div>
 
           {/* Note Type Selection */}
-          <div className="flex bg-gray-100 p-0.5 rounded-md">
+          <div className="flex bg-white p-0.5 rounded-md">
             <button
               type="button"
               onClick={() => setSelectedType("info")}
-              className={`p-1 rounded ${selectedType === "info" ? "bg-white shadow-sm text-blue-300" : "text-gray-400 hover:text-neutral-600"}`}
+              className={`cursor-pointer p-1 rounded ${selectedType === "info" ? "bg-neutral-800 shadow-sm text-white" : "text-gray-400 hover:text-neutral-600"}`}
               title="Info"
             >
-              <Info className="w-3.5 h-3.5" />
+              <Info className="w-4 h-4" strokeWidth={2} />
             </button>
             <button
               type="button"
               onClick={() => setSelectedType("alert")}
-              className={`p-1 rounded ${selectedType === "alert" ? "bg-white shadow-sm text-red-300" : "text-gray-400 hover:text-neutral-600"}`}
+              className={`cursor-pointer p-1 rounded ${selectedType === "alert" ? "bg-neutral-800 shadow-sm text-white" : "text-gray-400 hover:text-neutral-600"}`}
               title="Alert"
             >
-              <AlertTriangle className="w-3.5 h-3.5" />
+              <AlertTriangle className="w-4 h-4" strokeWidth={2} />
             </button>
             <button
               type="button"
               onClick={() => setSelectedType("idea")}
-              className={`p-1 rounded ${selectedType === "idea" ? "bg-white shadow-sm text-yellow-300" : "text-gray-400 hover:text-neutral-600"}`}
+              className={`cursor-pointer p-1 rounded ${selectedType === "idea" ? "bg-neutral-800 shadow-sm text-white" : "text-gray-400 hover:text-neutral-600"}`}
               title="Idea"
             >
-              <Lightbulb className="w-3.5 h-3.5" />
+              <Lightbulb className="w-4 h-4" strokeWidth={2} />
             </button>
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="flex gap-2 items-end">
+        <form onSubmit={handleSubmit} className="flex gap-2 items-center">
           <TextareaAutosize
             ref={textareaRef}
             value={newNote}
             onChange={(e) => setNewNote(e.target.value)}
             placeholder={`Add a cue to ${selectedScope === "domain" ? "this domain" : "this page"}...`}
-            className="flex-1 resize-none border border-gray-200 rounded-md p-2 text-sm focus:outline-none focus:ring-2 focus:ring-black/5 max-h-50"
+            className="flex-1 resize-none border-4 border-neutral-800 rounded-md p-2 text-sm focus:outline-none focus:ring-2 focus:ring-black/5 max-h-50"
             minRows={1}
             onKeyDown={(e) => {
               if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
@@ -881,7 +884,7 @@ function NotesUI({
           <button
             disabled={submitting || !newNote.trim()}
             type="submit"
-            className="bg-neutral-700 text-white p-2 rounded-md hover:bg-neutral-500 disabled:cursor-not-allowed transition-colors"
+            className="cursor-pointer bg-neutral-800 text-white p-2 rounded-md hover:bg-neutral-500 disabled:cursor-not-allowed transition-colors"
           >
             {submitting ? (
               <Loader2 className="w-4 h-4 animate-spin" />
@@ -894,4 +897,3 @@ function NotesUI({
     </div>
   );
 }
-
