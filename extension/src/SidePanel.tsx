@@ -17,7 +17,9 @@ import {
   Star,
   Edit2,
   Ghost,
+  Copy,
 } from "lucide-react";
+import MarkdownRenderer from "./components/MarkdownRenderer";
 import type { Database } from "../../types/supabase";
 import { supabase } from "./supabaseClient";
 import type { Session } from "@supabase/supabase-js";
@@ -164,6 +166,7 @@ function NotesUI({
   const [editContent, setEditContent] = useState("");
   const [editType, setEditType] = useState<NoteType>("info");
   const [updating, setUpdating] = useState(false);
+  const [copiedNoteId, setCopiedNoteId] = useState<string | null>(null);
 
   // 🌐 スコープ管理
   const [currentFullUrl, setCurrentFullUrl] = useState<string>("");
@@ -476,6 +479,16 @@ function NotesUI({
     }
   };
 
+  // 📋 メモ全体コピー
+  const handleCopyNote = (note: Note) => {
+    navigator.clipboard.writeText(note.content);
+    setCopiedNoteId(note.id);
+    toast.success("Copied to clipboard");
+    setTimeout(() => setCopiedNoteId(null), 2000);
+  };
+
+
+
   // 📝 Split notes into Favorites (Global) and Current Page (Local)
   const filteredNotes = notes.filter((note) => {
     // 1. Note Type Filter
@@ -503,10 +516,10 @@ function NotesUI({
         !n.is_favorite &&
         ((n.scope === "domain" &&
           n.url_pattern ===
-            (currentFullUrl ? getScopeUrls(currentFullUrl).domain : "")) ||
+          (currentFullUrl ? getScopeUrls(currentFullUrl).domain : "")) ||
           (n.scope === "exact" &&
             n.url_pattern ===
-              (currentFullUrl ? getScopeUrls(currentFullUrl).exact : ""))),
+            (currentFullUrl ? getScopeUrls(currentFullUrl).exact : ""))),
     )
     .sort((a, b) => {
       // 1. Pinned items first (Local Pin)
@@ -666,9 +679,12 @@ function NotesUI({
 
               {/* Content */}
               <div
-                className={`text-sm whitespace-pre-wrap pr-8 mb-2 ${note.is_resolved ? "line-through text-neutral-500" : "text-neutral-800"}`}
+                className={`text-sm pr-8 mb-2 ${note.is_resolved
+                  ? "line-through text-neutral-500"
+                  : "text-neutral-800"
+                  }`}
               >
-                {note.content}
+                <MarkdownRenderer content={note.content} />
               </div>
 
               {/* Metadata Footer */}
@@ -686,6 +702,17 @@ function NotesUI({
 
             {/* Right Bottom: Action Icons (Hover only) - Positioned relative to parent */}
             <div className="absolute bottom-3 right-3 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-white/90 pl-2 rounded-l-md">
+              <button
+                onClick={() => handleCopyNote(note)}
+                className="cursor-pointer text-neutral-300 hover:text-neutral-800 transition-colors"
+                title="Copy note"
+              >
+                {copiedNoteId === note.id ? (
+                  <Check className="w-3.5 h-3.5 text-green-500" />
+                ) : (
+                  <Copy className="w-3.5 h-3.5" />
+                )}
+              </button>
               <button
                 onClick={() => startEditing(note)}
                 className="cursor-pointer text-neutral-300 hover:text-neutral-800 transition-colors"
@@ -707,18 +734,18 @@ function NotesUI({
               (note.scope === "domain"
                 ? getScopeUrls(currentFullUrl).domain
                 : getScopeUrls(currentFullUrl).exact) && (
-              <div className="absolute bottom-3 right-14 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                <a
-                  href={`https://${note.url_pattern}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 text-[10px] text-neutral-300 hover:text-blue-400 hover:underline transition-colors"
-                  title={`Open ${note.url_pattern}`}
-                >
-                  <ExternalLink className="w-3 h-3" />
-                </a>
-              </div>
-            )}
+                <div className="absolute bottom-3 right-14 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                  <a
+                    href={`https://${note.url_pattern}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 text-[10px] text-neutral-300 hover:text-blue-400 hover:underline transition-colors"
+                    title={`Open ${note.url_pattern}`}
+                  >
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
+                </div>
+              )}
           </div>
         )}
       </div>
