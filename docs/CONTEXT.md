@@ -5,6 +5,11 @@
 SiteCueは、開発者向けの「コンテキスト認識型メモアプリ」です。
 Chrome拡張機能として動作し、現在開いているURLやドメインに紐付いたメモを表示します。
 
+## UI/UX Design Principles (引き算の美学)
+
+- **ノイズ除去**: 不要な情報や余白は徹底的に排除する（例：Domain Settingsが未設定の場合は、不自然な空白を作らず左詰めにし、不要なDOMはレンダリングしない）。
+- **ユーザーコントロール**: 設定した項目は、常に「解除（設定しない）」状態に戻せるようにする。
+
 ## Architecture
 
 - **Extension**: React + Vite + Tailwind CSS (Chrome Extension Manifest V3)
@@ -18,6 +23,14 @@ Chrome拡張機能として動作し、現在開いているURLやドメイン�
   - Path: `web/`
 - **Database**: Supabase (PostgreSQL)
   - RLS (Row Level Security): 必須。`user_id` に基づくアクセス制御を徹底する。
+
+## Markdown Rendering Rules
+
+- 拡張機能の「軽快さ」を死守するため、バンドルサイズを肥大化させる重いライブラリの使用を固く禁ずる。
+- **Text Rendering**: `react-markdown` を使用。
+  - プラグイン: `remark-breaks` (改行反映), `remark-gfm` (タスクリスト等のGFM対応)。
+- **Syntax Highlighting**: `react-syntax-highlighter` を使用。
+  - **重要**: 全言語バンドル（`Prism`）のインポートは厳禁。必ず `PrismLight` を使用し、必要な主要言語（js, ts, jsx, tsx, python, sql, bash, json, yaml, toml, html, css, diff, markdown）のみを個別に `registerLanguage` して使用すること。
 
 ## Authentication Strategy
 
@@ -36,9 +49,9 @@ Chrome拡張機能として動作し、現在開いているURLやドメイン�
 - `scope`: `'domain'` | `'exact'` (Check Constraint)
 - `note_type`: `'info'` | `'alert'` | `'idea'` (Check Constraint, Default: 'info')
 - `is_resolved`: `boolean` (Default: `false`)
-- `is_pinned`: `boolean` (Default: `false`) <-- 追加
+- `is_pinned`: `boolean` (Default: `false`)
   - **Local Context**: そのページ（URL）に関連する重要なメモとして、リスト最上位に固定表示する。
-- `is_favorite`: `boolean` (Default: `false`) <-- 追加
+- `is_favorite`: `boolean` (Default: `false`)
   - **Global Context**: どのページを開いていても参照できるよう、専用の「Favorites」セクションに常時表示する。
 - `url_pattern`:
   - **Normalization Rules**:
@@ -74,8 +87,6 @@ Chrome拡張機能として動作し、現在開いているURLやドメイン�
 4. **Extension Context**:
    - 拡張機能内でのデータ再取得（リフェッチ）は、Reactのライフサイクルだけでなく、`chrome.tabs.onUpdated` や `chrome.tabs.onActivated` などのブラウザイベントをトリガーにすること。
    - バックグラウンドでタブが切り替わった際も正しくコンテキストを追従させる必要がある。
-
-## Prompt Strategy
-
-- 各タスクの詳細は、都度与えられるプロンプトまたはGitHub Issueの記述に従うこと。
-
+5. **Development Workflow & Package Management**:
+   - パッケージマネージャーは `bun` を使用。
+   - `web`, `extension`, `api` のワークスペース（モノレポ）構成となっているため、依存関係の追加・更新時に `npm` や `pnpm` が裏で動いてロックファイルが競合しないよう注意する。
