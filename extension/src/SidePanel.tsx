@@ -826,6 +826,23 @@ function NotesUI({
                 <span className="opacity-70">
                   {new Date(note.created_at).toLocaleDateString()}
                 </span>
+
+                {/* External Link */}
+                {note.url_pattern !==
+                  (note.scope === "domain"
+                    ? getScopeUrls(currentFullUrl).domain
+                    : getScopeUrls(currentFullUrl).exact) && (
+                    <a
+                      href={`https://${note.url_pattern}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-1 hover:text-blue-400 hover:underline transition-colors max-w-30 ml-1"
+                      title={`Open ${note.url_pattern}`}
+                    >
+                      <ExternalLink className="w-3 h-3 shrink-0" />
+                      <span className="truncate">{note.url_pattern}</span>
+                    </a>
+                  )}
               </div>
             </div>
 
@@ -858,23 +875,7 @@ function NotesUI({
               </button>
             </div>
 
-            {/* Optional External Link */}
-            {note.url_pattern !==
-              (note.scope === "domain"
-                ? getScopeUrls(currentFullUrl).domain
-                : getScopeUrls(currentFullUrl).exact) && (
-                <div className="absolute bottom-3 right-14 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                  <a
-                    href={`https://${note.url_pattern}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 text-[10px] text-neutral-300 hover:text-blue-400 hover:underline transition-colors"
-                    title={`Open ${note.url_pattern}`}
-                  >
-                    <ExternalLink className="w-3 h-3" />
-                  </a>
-                </div>
-              )}
+
           </div>
         )}
       </div>
