@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import toast from "react-hot-toast";
-import { LogOut, Settings } from "lucide-react";
+import { LogOut, Settings, CircleOff } from "lucide-react";
 import { supabase } from "../supabaseClient";
 import type { Session } from "@supabase/supabase-js";
 
@@ -56,7 +56,8 @@ export default function Header({
       setEditLabel(data.label || "");
     } else {
       setSettings(null);
-      setEditColor("sky-600");
+      setEditColor(""); // Default to empty/cleared for new settings
+
       setEditLabel("");
     }
   };
@@ -65,17 +66,30 @@ export default function Header({
     if (!domain) return;
     setSaving(true);
     try {
-      const { error } = await supabase.from("sitecue_domain_settings").upsert(
-        {
-          user_id: session.user.id,
-          domain: domain,
-          color: editColor,
-          label: editLabel.trim() || null,
-        },
-        { onConflict: "user_id, domain" },
-      );
+      if (editColor === "") {
+        // Delete settings if cleared
+        const { error } = await supabase
+          .from("sitecue_domain_settings")
+          .delete()
+          .eq("user_id", session.user.id)
+          .eq("domain", domain);
 
-      if (error) throw error;
+        if (error) throw error;
+      } else {
+        // Upsert settings
+        const { error } = await supabase.from("sitecue_domain_settings").upsert(
+          {
+            user_id: session.user.id,
+            domain: domain,
+            color: editColor,
+            label: editLabel.trim() || null,
+          },
+          { onConflict: "user_id, domain" },
+        );
+
+        if (error) throw error;
+      }
+
       setIsSettingsOpen(false);
       fetchSettings();
       toast.success("Settings saved");
@@ -93,13 +107,17 @@ export default function Header({
         <div className="flex-1 min-w-0">
           <h1 className="text-lg font-semibold text-neutral-800 flex items-center gap-2">
             {/* Indicator Dot */}
-            <div
-              className={`w-2 h-2 shrink-0 rounded-full bg-${settings?.color?.replace("-600", "-600") || "sky-600"} ${settings?.color ? "" : "animate-pulse"}`}
-              style={{
-                backgroundColor: COLORS.find((c) => c.value === settings?.color)
-                  ?.hex,
-              }}
-            />
+            {/* Indicator Dot */}
+            {settings?.color && (
+              <div
+                className={`w-2 h-2 shrink-0 rounded-full`}
+                style={{
+                  backgroundColor: COLORS.find(
+                    (c) => c.value === settings?.color,
+                  )?.hex,
+                }}
+              />
+            )}
             <span className="truncate" title={title || "SiteCue"}>
               {title || "SiteCue"}
             </span>
@@ -149,12 +167,19 @@ export default function Header({
               <label className="text-xs font-medium text-neutral-500 mb-1.5 block">
                 Color
               </label>
-              <div className="flex gap-2">
+              <div className="flex gap-2 items-center">
+                <button
+                  onClick={() => setEditColor("")}
+                  className={`cursor-pointer w-4 h-4 rounded-full transition-all flex items-center justify-center border border-transparent text-neutral-400 hover:text-neutral-600 ${editColor === "" ? "text-neutral-600 bg-neutral-100" : ""}`}
+                  title="Clear Settings"
+                >
+                  <CircleOff className="w-3.5 h-3.5" />
+                </button>
                 {COLORS.map((c) => (
                   <button
                     key={c.value}
                     onClick={() => setEditColor(c.value)}
-                    className={`cursor-pointer w-4 h-4 rounded-full transition-all ${editColor === c.value ? "scale-130" : "border-transparent hover:scale-130"}`}
+                    className={`cursor-pointer w-4 h-4 rounded-full transition-all ${editColor === c.value ? "scale-130 ring-2 ring-offset-1 ring-neutral-300" : "border-transparent hover:scale-130"}`}
                     style={{ backgroundColor: c.hex }}
                     title={c.name}
                   />
