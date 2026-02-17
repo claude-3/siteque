@@ -17,6 +17,7 @@ import css from "react-syntax-highlighter/dist/esm/languages/prism/css";
 import html from "react-syntax-highlighter/dist/esm/languages/prism/markup";
 import toml from "react-syntax-highlighter/dist/esm/languages/prism/toml";
 import yaml from "react-syntax-highlighter/dist/esm/languages/prism/yaml";
+import lua from "react-syntax-highlighter/dist/esm/languages/prism/lua";
 import sql from "react-syntax-highlighter/dist/esm/languages/prism/sql";
 import diff from "react-syntax-highlighter/dist/esm/languages/prism/diff";
 
@@ -40,6 +41,7 @@ SyntaxHighlighter.registerLanguage("json", json);
 SyntaxHighlighter.registerLanguage("toml", toml);
 SyntaxHighlighter.registerLanguage("yaml", yaml);
 SyntaxHighlighter.registerLanguage("yml", yaml);
+SyntaxHighlighter.registerLanguage("lua", lua);
 
 // Backend & DB & Others
 SyntaxHighlighter.registerLanguage("python", python);
@@ -91,9 +93,34 @@ export default function MarkdownRenderer({
           ol: ({ children }) => (
             <ol className="list-decimal pl-4 mb-2 space-y-1">{children}</ol>
           ),
-          li: ({ children }) => (
-            <li className="text-sm leading-relaxed">{children}</li>
-          ),
+          li: ({ children, className }) => {
+            // Check if this li contains a task list checkbox (remark-gfm adds 'task-list-item' class)
+            const isTaskListItem = className?.includes("task-list-item");
+            return (
+              <li
+                className={`text-sm leading-relaxed ${
+                  isTaskListItem ? "flex items-start gap-2 list-none -ml-4" : ""
+                }`}
+              >
+                {children}
+              </li>
+            );
+          },
+          input: (props) => {
+            if (props.type === "checkbox") {
+              return (
+                <input
+                  type="checkbox"
+                  checked={props.checked}
+                  disabled={props.disabled}
+                  readOnly
+                  className="appearance-none w-4 h-4 min-w-4 min-h-4 border border-neutral-300 rounded bg-white checked:bg-neutral-800 checked:border-neutral-800 focus:ring-1 focus:ring-neutral-400 focus:outline-none transition ease-in-out duration-150 cursor-pointer mt-0.5 disabled:opacity-60 disabled:cursor-not-allowed relative
+                  checked:after:content-[''] checked:after:absolute checked:after:left-1.25 checked:after:top-0.5 checked:after:w-1.25 checked:after:h-2.25 checked:after:border-white checked:after:border-r-2 checked:after:border-b-2 checked:after:rotate-45"
+                />
+              );
+            }
+            return <input {...props} />;
+          },
 
           // Text Styling
           p: ({ children }) => (
