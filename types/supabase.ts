@@ -129,6 +129,31 @@ export interface Database {
                     }
                 ]
             }
+            sitecue_profiles: {
+                Row: {
+                    id: string
+                    plan: 'free' | 'pro'
+                    created_at: string
+                }
+                Insert: {
+                    id: string
+                    plan?: 'free' | 'pro'
+                    created_at?: string
+                }
+                Update: {
+                    id?: string
+                    plan?: 'free' | 'pro'
+                    created_at?: string
+                }
+                Relationships: [
+                    {
+                        foreignKeyName: "sitecue_profiles_id_fkey"
+                        columns: ["id"]
+                        referencedRelation: "users"
+                        referencedColumns: ["id"]
+                    }
+                ]
+            }
         }
         Views: {
             [_ in never]: never

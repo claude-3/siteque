@@ -82,8 +82,8 @@ export default function SidePanel() {
           queryParams:
             provider === "google"
               ? {
-                prompt: "select_account",
-              }
+                  prompt: "select_account",
+                }
               : undefined,
         },
       });
@@ -99,7 +99,9 @@ export default function SidePanel() {
         },
         async (redirectUri) => {
           if (chrome.runtime.lastError) {
-            setAuthError(chrome.runtime.lastError.message || "Authentication failed");
+            setAuthError(
+              chrome.runtime.lastError.message || "Authentication failed",
+            );
             setAuthLoading(false);
             return;
           }
@@ -121,7 +123,8 @@ export default function SidePanel() {
 
           if (!accessToken || !refreshToken) {
             // Sometimes error details are in the query or hash
-            const errorDescription = params.get("error_description") || "Authentication incomplete";
+            const errorDescription =
+              params.get("error_description") || "Authentication incomplete";
             setAuthError(errorDescription);
             setAuthLoading(false);
             return;
@@ -137,11 +140,11 @@ export default function SidePanel() {
             setAuthError(sessionError.message);
           }
 
-          // No need to setAuthLoading(false) here if successful, 
+          // No need to setAuthLoading(false) here if successful,
           // because onAuthStateChange will trigger and unmount this login view
           // But just in case:
           setAuthLoading(false);
-        }
+        },
       );
     } catch (err: any) {
       console.error("Login failed:", err);
@@ -208,7 +211,12 @@ export default function SidePanel() {
               className="cursor-pointer w-full flex items-center justify-center gap-2 bg-[#24292F] text-white py-2.5 rounded text-sm font-medium hover:bg-[#24292F]/90 transition-colors disabled:opacity-50"
             >
               {/* GitHub Icon (SVG Path) */}
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+              >
                 <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z" />
               </svg>
               Continue with GitHub
@@ -254,6 +262,39 @@ function NotesUI({
   >("all");
   const [showResolved, setShowResolved] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // 📊 プランと制限管理
+  const [userPlan, setUserPlan] = useState<"free" | "pro">("free");
+  const [totalNoteCount, setTotalNoteCount] = useState<number>(0);
+
+  useEffect(() => {
+    const fetchUserStats = async () => {
+      if (!session?.user?.id) return;
+
+      // Fetch Profile
+      const { data: profile } = await supabase
+        .from("sitecue_profiles")
+        .select("plan")
+        .eq("id", session.user.id)
+        .single();
+
+      if (profile) {
+        setUserPlan(profile.plan);
+      }
+
+      // Fetch Count
+      const { count } = await supabase
+        .from("sitecue_notes")
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", session.user.id);
+
+      if (count !== null) {
+        setTotalNoteCount(count);
+      }
+    };
+
+    fetchUserStats();
+  }, [session]);
 
   // ✅ 安全なURL取得 (修正済み)
   useEffect(() => {
@@ -402,6 +443,7 @@ function NotesUI({
       toast.success("Cue added");
       setNewNote("");
       fetchNotes();
+      setTotalNoteCount((prev) => prev + 1);
       chrome.runtime.sendMessage({ type: "REFRESH_BADGE" });
     } catch (error) {
       console.error("Failed to create note", error);
@@ -470,6 +512,7 @@ function NotesUI({
 
       // ローカルのstateから除外
       setNotes(notes.filter((note) => note.id !== id));
+      setTotalNoteCount((prev) => Math.max(0, prev - 1));
       toast.success("Cue deleted");
       chrome.runtime.sendMessage({ type: "REFRESH_BADGE" });
     } catch (error) {
@@ -562,8 +605,6 @@ function NotesUI({
     setTimeout(() => setCopiedNoteId(null), 2000);
   };
 
-
-
   // 📝 Split notes into Favorites (Global) and Current Page (Local)
   const filteredNotes = notes.filter((note) => {
     // 1. Note Type Filter
@@ -591,10 +632,10 @@ function NotesUI({
         !n.is_favorite &&
         ((n.scope === "domain" &&
           n.url_pattern ===
-          (currentFullUrl ? getScopeUrls(currentFullUrl).domain : "")) ||
+            (currentFullUrl ? getScopeUrls(currentFullUrl).domain : "")) ||
           (n.scope === "exact" &&
             n.url_pattern ===
-            (currentFullUrl ? getScopeUrls(currentFullUrl).exact : ""))),
+              (currentFullUrl ? getScopeUrls(currentFullUrl).exact : ""))),
     )
     .sort((a, b) => {
       // 1. Pinned items first (Local Pin)
@@ -754,10 +795,11 @@ function NotesUI({
 
               {/* Content */}
               <div
-                className={`text-sm pr-8 mb-2 ${note.is_resolved
-                  ? "line-through text-neutral-500"
-                  : "text-neutral-800"
-                  }`}
+                className={`text-sm pr-8 mb-2 ${
+                  note.is_resolved
+                    ? "line-through text-neutral-500"
+                    : "text-neutral-800"
+                }`}
               >
                 <MarkdownRenderer content={note.content} />
               </div>
@@ -778,17 +820,17 @@ function NotesUI({
                   (note.scope === "domain"
                     ? getScopeUrls(currentFullUrl).domain
                     : getScopeUrls(currentFullUrl).exact) && (
-                    <a
-                      href={`https://${note.url_pattern}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-1 hover:text-blue-400 hover:underline transition-colors max-w-30 ml-1"
-                      title={`Open ${note.url_pattern}`}
-                    >
-                      <ExternalLink className="w-3 h-3 shrink-0" />
-                      <span className="truncate">{note.url_pattern}</span>
-                    </a>
-                  )}
+                  <a
+                    href={`https://${note.url_pattern}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1 hover:text-blue-400 hover:underline transition-colors max-w-30 ml-1"
+                    title={`Open ${note.url_pattern}`}
+                  >
+                    <ExternalLink className="w-3 h-3 shrink-0" />
+                    <span className="truncate">{note.url_pattern}</span>
+                  </a>
+                )}
               </div>
             </div>
 
@@ -820,8 +862,6 @@ function NotesUI({
                 <Trash2 className="w-3.5 h-3.5" />
               </button>
             </div>
-
-
           </div>
         )}
       </div>
@@ -970,31 +1010,47 @@ function NotesUI({
         </div>
 
         <form onSubmit={handleSubmit} className="flex gap-2 items-center">
-          <TextareaAutosize
-            ref={textareaRef}
-            value={newNote}
-            onChange={(e) => setNewNote(e.target.value)}
-            placeholder={`Add a cue to ${selectedScope === "domain" ? "this domain" : "this page"}...`}
-            className="flex-1 resize-none border-4 border-neutral-800 rounded-md p-2 text-sm focus:outline-none focus:ring-2 focus:ring-black/5 max-h-50"
-            minRows={1}
-            onKeyDown={(e) => {
-              if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
-                e.preventDefault();
-                handleSubmit(e);
-              }
-            }}
-          />
-          <button
-            disabled={submitting || !newNote.trim()}
-            type="submit"
-            className="cursor-pointer bg-neutral-800 text-white p-2 rounded-md hover:bg-neutral-500 disabled:cursor-not-allowed transition-colors"
-          >
-            {submitting ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <Send className="w-4 h-4" />
-            )}
-          </button>
+          {userPlan === "free" && totalNoteCount >= 200 ? (
+            <div className="w-full bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800 flex items-start gap-3">
+              <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5" />
+              <div>
+                <div className="font-bold mb-1">FREE Plan Limit Reached</div>
+                <p className="text-xs opacity-90">
+                  You have reached the 200 note limit. Please delete some
+                  existing notes to create new ones.
+                </p>
+              </div>
+            </div>
+          ) : (
+            <>
+              <TextareaAutosize
+                ref={textareaRef}
+                value={newNote}
+                onChange={(e) => setNewNote(e.target.value)}
+                placeholder={`Add a cue to ${selectedScope === "domain" ? "this domain" : "this page"}...`}
+                className="flex-1 resize-none border-4 border-neutral-800 rounded-md p-2 text-sm focus:outline-none focus:ring-2 focus:ring-black/5 max-h-50"
+                minRows={1}
+                onKeyDown={(e) => {
+                  if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+                    e.preventDefault();
+                    handleSubmit(e);
+                  }
+                }}
+              />
+              <button
+                disabled={submitting || !newNote.trim()}
+                type="submit"
+                className="cursor-pointer bg-neutral-800 text-white p-2 rounded-md hover:bg-neutral-500 disabled:cursor-not-allowed transition-colors"
+                title="Add Note"
+              >
+                {submitting ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Send className="w-4 h-4" />
+                )}
+              </button>
+            </>
+          )}
         </form>
       </div>
     </div>
