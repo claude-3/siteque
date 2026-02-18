@@ -1,5 +1,12 @@
 # Project: SiteCue
 
+# 🚨 開発ルールの絶対遵守事項 (CRITICAL: PACKAGE MANAGER)
+
+- 本プロジェクトのパッケージマネージャーは **Bun** です。
+- **絶対に `npm`, `yarn`, `pnpm` を使用しないでください。**
+- パッケージの追加、インストール、スクリプトの実行は、必ず `bun add`, `bun install`, `bun run` を使用してください。
+- （AIエディタへ）自動コマンド提案で `npm install` や `npm run build` を提示することは固く禁じます。
+
 ## Overview
 
 SiteCueは、開発者向けの「コンテキスト認識型メモアプリ」です。
@@ -35,11 +42,12 @@ Chrome拡張機能として動作し、現在開いているURLやドメイン�
 ## Authentication Strategy
 
 - **Provider**: Supabase Auth
-- **Methods**: Email/Password, OAuth (Google, GitHub)
+- **Methods**: OAuth (Google, GitHub) ※Email/Passwordは廃止済み
 - **Extension Constraints (重要)**:
   - Chrome拡張機能（SidePanel等）内では通常のリダイレクトによるOAuthフローが機能しない。
   - そのため、ソーシャルログインの実装・改修を行う際は、必ず `chrome.identity.launchWebAuthFlow` を使用すること。
   - Supabaseの `signInWithOAuth()` を呼び出す際は、`options.redirectTo` に `chrome.identity.getRedirectURL()` で動的に取得したURL（`https://<app-id>.chromiumapp.org/`）を必ず指定し、PKCEフローで認証を完了させること。
+  - **アカウント選択の強制**: Googleログイン時は必ず `options: { queryParams: { prompt: 'select_account' } }` を付与し、意図しないアカウントでの自動ログインを防ぐこと。
 
 ## Database Schema Strategy
 
@@ -88,5 +96,4 @@ Chrome拡張機能として動作し、現在開いているURLやドメイン�
    - 拡張機能内でのデータ再取得（リフェッチ）は、Reactのライフサイクルだけでなく、`chrome.tabs.onUpdated` や `chrome.tabs.onActivated` などのブラウザイベントをトリガーにすること。
    - バックグラウンドでタブが切り替わった際も正しくコンテキストを追従させる必要がある。
 5. **Development Workflow & Package Management**:
-   - パッケージマネージャーは `bun` を使用。
-   - `web`, `extension`, `api` のワークスペース（モノレポ）構成となっているため、依存関係の追加・更新時に `npm` や `pnpm` が裏で動いてロックファイルが競合しないよう注意する。
+   - ワークスペースの依存関係解決は必ず **Bun** に一任すること。`npm` や `pnpm` が裏で動いてロックファイルが競合しないよう、エディタ側の自動実行コマンド等にも細心の注意を払うこと。
