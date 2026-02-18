@@ -10,7 +10,7 @@
 ## Overview
 
 SiteCueは、開発者向けの「コンテキスト認識型メモアプリ」です。
-Chrome拡張機能として動作し、現在開いているURLやドメインに紐付いたメモを表示します。
+Chrome拡張機能として動作し、現在開いているURLやドメインに紐付いたメモを表示します。将来的な収益化を見据え、無料ユーザーには一定の制限を設けています。
 
 ## UI/UX Design Principles (引き算の美学)
 
@@ -67,6 +67,15 @@ Chrome拡張機能として動作し、現在開いているURLやドメイン�
     - **Scope = 'domain'**: Hostnameのみ保存する (例: `github.com`)。
     - **Scope = 'exact'**: Hostname + Path + Queryを保存する (例: `github.com/user/repo?q=1`)。
 - **Migrations**: DB変更は必ず `supabase/migrations` 内のSQLファイルで行うこと。
+
+### `sitecue_profiles`
+
+- ユーザーのプランと利用制限を管理するテーブル。
+- `id`: uuid (FK to `auth.users.id`) - RLS必須
+- `plan`: `'free'` | `'pro'` (Default: `'free'`)
+- **Access Control & Triggers**:
+  - `handle_new_user`: 新規ユーザー登録時に自動で `free` プランのレコードを作成する。
+  - `check_note_limit`: `sitecue_notes` への INSERT 時に発火し、ユーザーの `plan` が `'free'` かつメモ件数が200件以上の場合は例外（エラー）を投げて保存をブロックする。
 
 ### `sitecue_domain_settings`
 
