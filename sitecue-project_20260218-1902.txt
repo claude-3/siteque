@@ -12745,258 +12745,6 @@ declare abstract class WorkflowInstance {
 }
 </file>
 
-<file path="extension/src/components/MarkdownRenderer.tsx">
-import { useState } from "react";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
-import remarkBreaks from "remark-breaks";
-import { Check, Copy, ExternalLink } from "lucide-react";
-import { PrismLight as SyntaxHighlighter } from "react-syntax-highlighter";
-import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
-import javascript from "react-syntax-highlighter/dist/esm/languages/prism/javascript";
-import typescript from "react-syntax-highlighter/dist/esm/languages/prism/typescript";
-import jsx from "react-syntax-highlighter/dist/esm/languages/prism/jsx";
-import tsx from "react-syntax-highlighter/dist/esm/languages/prism/tsx";
-import python from "react-syntax-highlighter/dist/esm/languages/prism/python";
-import json from "react-syntax-highlighter/dist/esm/languages/prism/json";
-import bash from "react-syntax-highlighter/dist/esm/languages/prism/bash";
-import markdown from "react-syntax-highlighter/dist/esm/languages/prism/markdown";
-import css from "react-syntax-highlighter/dist/esm/languages/prism/css";
-import html from "react-syntax-highlighter/dist/esm/languages/prism/markup";
-import toml from "react-syntax-highlighter/dist/esm/languages/prism/toml";
-import yaml from "react-syntax-highlighter/dist/esm/languages/prism/yaml";
-import lua from "react-syntax-highlighter/dist/esm/languages/prism/lua";
-import sql from "react-syntax-highlighter/dist/esm/languages/prism/sql";
-import diff from "react-syntax-highlighter/dist/esm/languages/prism/diff";
-
-// --- Register Languages ---
-// JS/TS & React
-SyntaxHighlighter.registerLanguage("javascript", javascript);
-SyntaxHighlighter.registerLanguage("js", javascript);
-SyntaxHighlighter.registerLanguage("typescript", typescript);
-SyntaxHighlighter.registerLanguage("ts", typescript);
-SyntaxHighlighter.registerLanguage("jsx", jsx);
-SyntaxHighlighter.registerLanguage("tsx", tsx);
-
-// Web & Markup
-SyntaxHighlighter.registerLanguage("html", html);
-SyntaxHighlighter.registerLanguage("css", css);
-SyntaxHighlighter.registerLanguage("markdown", markdown);
-SyntaxHighlighter.registerLanguage("md", markdown);
-
-// Config & Data
-SyntaxHighlighter.registerLanguage("json", json);
-SyntaxHighlighter.registerLanguage("toml", toml);
-SyntaxHighlighter.registerLanguage("yaml", yaml);
-SyntaxHighlighter.registerLanguage("yml", yaml);
-SyntaxHighlighter.registerLanguage("lua", lua);
-
-// Backend & DB & Others
-SyntaxHighlighter.registerLanguage("python", python);
-SyntaxHighlighter.registerLanguage("py", python);
-SyntaxHighlighter.registerLanguage("sql", sql);
-SyntaxHighlighter.registerLanguage("bash", bash);
-SyntaxHighlighter.registerLanguage("sh", bash);
-SyntaxHighlighter.registerLanguage("diff", diff);
-
-interface MarkdownRendererProps {
-  content: string;
-  className?: string;
-}
-
-export default function MarkdownRenderer({
-  content,
-  className = "",
-}: MarkdownRendererProps) {
-  const [copiedCode, setCopiedCode] = useState<string | null>(null);
-
-  const handleCopyCode = (code: string, id: string) => {
-    navigator.clipboard.writeText(code);
-    setCopiedCode(id);
-    setTimeout(() => setCopiedCode(null), 2000);
-  };
-
-  return (
-    <div
-      className={`prose prose-sm prose-neutral max-w-none ${className} break-words [&>*:first-child]:mt-0`}
-    >
-      <ReactMarkdown
-        remarkPlugins={[remarkGfm, remarkBreaks]}
-        components={{
-          // Header Styling
-          h1: ({ children }) => (
-            <h1 className="text-lg font-bold mt-4 mb-2">{children}</h1>
-          ),
-          h2: ({ children }) => (
-            <h2 className="text-base font-bold mt-3 mb-2">{children}</h2>
-          ),
-          h3: ({ children }) => (
-            <h3 className="text-sm font-semibold mt-2 mb-1">{children}</h3>
-          ),
-
-          // List Styling
-          ul: ({ children }) => (
-            <ul className="list-disc pl-4 mb-2 space-y-1">{children}</ul>
-          ),
-          ol: ({ children }) => (
-            <ol className="list-decimal pl-4 mb-2 space-y-1">{children}</ol>
-          ),
-          li: ({ children, className }) => {
-            // Check if this li contains a task list checkbox (remark-gfm adds 'task-list-item' class)
-            const isTaskListItem = className?.includes("task-list-item");
-            return (
-              <li
-                className={`text-sm leading-relaxed ${
-                  isTaskListItem ? "flex items-start gap-2 list-none -ml-4" : ""
-                }`}
-              >
-                {children}
-              </li>
-            );
-          },
-          input: (props) => {
-            if (props.type === "checkbox") {
-              return (
-                <input
-                  type="checkbox"
-                  checked={props.checked}
-                  disabled={props.disabled}
-                  readOnly
-                  className="appearance-none w-4 h-4 min-w-4 min-h-4 border border-neutral-300 rounded bg-white checked:bg-neutral-800 checked:border-neutral-800 focus:ring-1 focus:ring-neutral-400 focus:outline-none transition ease-in-out duration-150 cursor-pointer mt-0.5 disabled:opacity-60 disabled:cursor-not-allowed relative
-                  checked:after:content-[''] checked:after:absolute checked:after:left-1.25 checked:after:top-0.5 checked:after:w-1.25 checked:after:h-2.25 checked:after:border-white checked:after:border-r-2 checked:after:border-b-2 checked:after:rotate-45"
-                />
-              );
-            }
-            return <input {...props} />;
-          },
-
-          // Text Styling
-          p: ({ children }) => (
-            <p className="mb-2 text-sm leading-relaxed">{children}</p>
-          ),
-          strong: ({ children }) => (
-            <strong className="font-semibold text-neutral-900">
-              {children}
-            </strong>
-          ),
-          em: ({ children }) => (
-            <em className="italic text-neutral-600">{children}</em>
-          ),
-          blockquote: ({ children }) => (
-            <blockquote className="border-l-4 border-gray-200 pl-4 py-1 my-2 bg-gray-50 italic text-neutral-600 rounded-r">
-              {children}
-            </blockquote>
-          ),
-
-          // Link Styling - Force external new tab
-          a: ({ href, children }) => (
-            <a
-              href={href}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-blue-500 hover:text-blue-600 hover:underline inline-flex items-center gap-0.5"
-            >
-              {children}
-              <ExternalLink className="w-3 h-3 inline-block" />
-            </a>
-          ),
-
-          // Code Styling
-          code(props) {
-            const { children, className, node, ref, ...rest } = props;
-            const match = /language-(\w+)/.exec(className || "");
-            const isInline = !match && !String(children).includes("\n");
-
-            if (isInline) {
-              return (
-                <code
-                  {...rest}
-                  className="px-1.5 py-0.5 bg-gray-100 text-neutral-800 rounded font-mono text-xs"
-                >
-                  {children}
-                </code>
-              );
-            }
-
-            // Block Code
-            const codeString = String(children).replace(/\n$/, "");
-            const uniqueId = Math.random().toString(36).substr(2, 9);
-            const isCopied = copiedCode === uniqueId;
-            const language = match ? match[1] : "";
-
-            return (
-              <div className="relative group my-3">
-                <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity bg-white/90 rounded shadow-sm border border-gray-200 z-10">
-                  <button
-                    onClick={() => handleCopyCode(codeString, uniqueId)}
-                    className="p-1.5 text-neutral-500 hover:text-neutral-800 flex items-center justify-center transition-colors cursor-pointer"
-                    title="Copy code"
-                  >
-                    {isCopied ? (
-                      <Check className="w-3.5 h-3.5 text-green-500" />
-                    ) : (
-                      <Copy className="w-3.5 h-3.5" />
-                    )}
-                  </button>
-                </div>
-                <div className="rounded-lg overflow-hidden text-xs font-mono leading-relaxed relative">
-                  <SyntaxHighlighter
-                    {...rest}
-                    style={vscDarkPlus}
-                    language={language}
-                    PreTag="div"
-                    customStyle={{
-                      margin: 0,
-                      padding: "0.75rem",
-                      backgroundColor: "#1e1e1e", // Match vscDarkPlus bg
-                    }}
-                    codeTagProps={{
-                      style: { fontFamily: "inherit" },
-                    }}
-                  >
-                    {codeString}
-                  </SyntaxHighlighter>
-                </div>
-              </div>
-            );
-          },
-
-          // Table Styling
-          table: ({ children }) => (
-            <div className="overflow-x-auto my-3 border rounded border-gray-200">
-              <table className="min-w-full divide-y divide-gray-200 text-sm">
-                {children}
-              </table>
-            </div>
-          ),
-          thead: ({ children }) => (
-            <thead className="bg-gray-50">{children}</thead>
-          ),
-          tbody: ({ children }) => (
-            <tbody className="divide-y divide-gray-200 bg-white">
-              {children}
-            </tbody>
-          ),
-          tr: ({ children }) => <tr>{children}</tr>,
-          th: ({ children }) => (
-            <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              {children}
-            </th>
-          ),
-          td: ({ children }) => (
-            <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100 last:border-r-0">
-              {children}
-            </td>
-          ),
-        }}
-      >
-        {content}
-      </ReactMarkdown>
-    </div>
-  );
-}
-</file>
-
 <file path="extension/src/hooks/useQuickLinks.ts">
 import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '../supabaseClient';
@@ -13794,6 +13542,258 @@ export default function FilterBar({
         <CheckSquare className="w-3.5 h-3.5" />
         <span className="hidden sm:inline">Resolved</span>
       </button>
+    </div>
+  );
+}
+</file>
+
+<file path="extension/src/components/MarkdownRenderer.tsx">
+import { useState } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import remarkBreaks from "remark-breaks";
+import { Check, Copy, ExternalLink } from "lucide-react";
+import { PrismLight as SyntaxHighlighter } from "react-syntax-highlighter";
+import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
+import javascript from "react-syntax-highlighter/dist/esm/languages/prism/javascript";
+import typescript from "react-syntax-highlighter/dist/esm/languages/prism/typescript";
+import jsx from "react-syntax-highlighter/dist/esm/languages/prism/jsx";
+import tsx from "react-syntax-highlighter/dist/esm/languages/prism/tsx";
+import python from "react-syntax-highlighter/dist/esm/languages/prism/python";
+import json from "react-syntax-highlighter/dist/esm/languages/prism/json";
+import bash from "react-syntax-highlighter/dist/esm/languages/prism/bash";
+import markdown from "react-syntax-highlighter/dist/esm/languages/prism/markdown";
+import css from "react-syntax-highlighter/dist/esm/languages/prism/css";
+import html from "react-syntax-highlighter/dist/esm/languages/prism/markup";
+import toml from "react-syntax-highlighter/dist/esm/languages/prism/toml";
+import yaml from "react-syntax-highlighter/dist/esm/languages/prism/yaml";
+import lua from "react-syntax-highlighter/dist/esm/languages/prism/lua";
+import sql from "react-syntax-highlighter/dist/esm/languages/prism/sql";
+import diff from "react-syntax-highlighter/dist/esm/languages/prism/diff";
+
+// --- Register Languages ---
+// JS/TS & React
+SyntaxHighlighter.registerLanguage("javascript", javascript);
+SyntaxHighlighter.registerLanguage("js", javascript);
+SyntaxHighlighter.registerLanguage("typescript", typescript);
+SyntaxHighlighter.registerLanguage("ts", typescript);
+SyntaxHighlighter.registerLanguage("jsx", jsx);
+SyntaxHighlighter.registerLanguage("tsx", tsx);
+
+// Web & Markup
+SyntaxHighlighter.registerLanguage("html", html);
+SyntaxHighlighter.registerLanguage("css", css);
+SyntaxHighlighter.registerLanguage("markdown", markdown);
+SyntaxHighlighter.registerLanguage("md", markdown);
+
+// Config & Data
+SyntaxHighlighter.registerLanguage("json", json);
+SyntaxHighlighter.registerLanguage("toml", toml);
+SyntaxHighlighter.registerLanguage("yaml", yaml);
+SyntaxHighlighter.registerLanguage("yml", yaml);
+SyntaxHighlighter.registerLanguage("lua", lua);
+
+// Backend & DB & Others
+SyntaxHighlighter.registerLanguage("python", python);
+SyntaxHighlighter.registerLanguage("py", python);
+SyntaxHighlighter.registerLanguage("sql", sql);
+SyntaxHighlighter.registerLanguage("bash", bash);
+SyntaxHighlighter.registerLanguage("sh", bash);
+SyntaxHighlighter.registerLanguage("diff", diff);
+
+interface MarkdownRendererProps {
+  content: string;
+  className?: string;
+}
+
+export default function MarkdownRenderer({
+  content,
+  className = "",
+}: MarkdownRendererProps) {
+  const [copiedCode, setCopiedCode] = useState<string | null>(null);
+
+  const handleCopyCode = (code: string, id: string) => {
+    navigator.clipboard.writeText(code);
+    setCopiedCode(id);
+    setTimeout(() => setCopiedCode(null), 2000);
+  };
+
+  return (
+    <div
+      className={`prose prose-sm prose-neutral max-w-none ${className} break-words [&>*:first-child]:mt-0`}
+    >
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm, remarkBreaks]}
+        components={{
+          // Header Styling
+          h1: ({ children }) => (
+            <h1 className="text-lg font-bold mt-4 mb-2">{children}</h1>
+          ),
+          h2: ({ children }) => (
+            <h2 className="text-base font-bold mt-3 mb-2">{children}</h2>
+          ),
+          h3: ({ children }) => (
+            <h3 className="text-sm font-semibold mt-2 mb-1">{children}</h3>
+          ),
+
+          // List Styling
+          ul: ({ children }) => (
+            <ul className="list-disc pl-4 mb-2 space-y-1">{children}</ul>
+          ),
+          ol: ({ children }) => (
+            <ol className="list-decimal pl-4 mb-2 space-y-1">{children}</ol>
+          ),
+          li: ({ children, className }) => {
+            // Check if this li contains a task list checkbox (remark-gfm adds 'task-list-item' class)
+            const isTaskListItem = className?.includes("task-list-item");
+            return (
+              <li
+                className={`text-sm leading-relaxed ${
+                  isTaskListItem ? "flex items-start gap-2 list-none -ml-4" : ""
+                }`}
+              >
+                {children}
+              </li>
+            );
+          },
+          input: (props) => {
+            if (props.type === "checkbox") {
+              return (
+                <input
+                  type="checkbox"
+                  checked={props.checked}
+                  disabled={props.disabled}
+                  readOnly
+                  className="appearance-none w-4 h-4 min-w-4 min-h-4 border border-neutral-300 rounded bg-white checked:bg-neutral-800 checked:border-neutral-800 focus:ring-1 focus:ring-neutral-400 focus:outline-none transition ease-in-out duration-150 cursor-pointer mt-0.5 disabled:opacity-60 disabled:cursor-not-allowed relative
+                  checked:after:content-[''] checked:after:absolute checked:after:left-1.25 checked:after:top-0.5 checked:after:w-1.25 checked:after:h-2.25 checked:after:border-white checked:after:border-r-2 checked:after:border-b-2 checked:after:rotate-45"
+                />
+              );
+            }
+            return <input {...props} />;
+          },
+
+          // Text Styling
+          p: ({ children }) => (
+            <p className="mb-2 text-sm leading-relaxed">{children}</p>
+          ),
+          strong: ({ children }) => (
+            <strong className="font-semibold text-neutral-900">
+              {children}
+            </strong>
+          ),
+          em: ({ children }) => (
+            <em className="italic text-neutral-600">{children}</em>
+          ),
+          blockquote: ({ children }) => (
+            <blockquote className="border-l-4 border-gray-200 pl-4 py-1 my-2 bg-gray-50 italic text-neutral-600 rounded-r">
+              {children}
+            </blockquote>
+          ),
+
+          // Link Styling - Force external new tab
+          a: ({ href, children }) => (
+            <a
+              href={href}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-blue-500 hover:text-blue-600 hover:underline inline-flex items-center gap-0.5"
+            >
+              {children}
+              <ExternalLink className="w-3 h-3 inline-block" />
+            </a>
+          ),
+
+          // Code Styling
+          code(props) {
+            const { children, className, node, ref, ...rest } = props;
+            const match = /language-(\w+)/.exec(className || "");
+            const isInline = !match && !String(children).includes("\n");
+
+            if (isInline) {
+              return (
+                <code
+                  {...rest}
+                  className="px-1.5 py-0.5 bg-gray-100 text-neutral-800 rounded font-mono text-xs"
+                >
+                  {children}
+                </code>
+              );
+            }
+
+            // Block Code
+            const codeString = String(children).replace(/\n$/, "");
+            const uniqueId = Math.random().toString(36).substr(2, 9);
+            const isCopied = copiedCode === uniqueId;
+            const language = match ? match[1] : "";
+
+            return (
+              <div className="relative group my-3">
+                <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity bg-white/90 rounded shadow-sm border border-gray-200 z-10">
+                  <button
+                    onClick={() => handleCopyCode(codeString, uniqueId)}
+                    className="p-1.5 text-neutral-500 hover:text-neutral-800 flex items-center justify-center transition-colors cursor-pointer"
+                    title="Copy code"
+                  >
+                    {isCopied ? (
+                      <Check className="w-3.5 h-3.5 text-green-500" />
+                    ) : (
+                      <Copy className="w-3.5 h-3.5" />
+                    )}
+                  </button>
+                </div>
+                <div className="rounded-lg overflow-hidden text-xs font-mono leading-relaxed relative">
+                  <SyntaxHighlighter
+                    {...rest}
+                    style={vscDarkPlus}
+                    language={language}
+                    PreTag="div"
+                    customStyle={{
+                      margin: 0,
+                      padding: "0.75rem",
+                      backgroundColor: "#1e1e1e", // Match vscDarkPlus bg
+                    }}
+                    codeTagProps={{
+                      style: { fontFamily: "inherit" },
+                    }}
+                  >
+                    {codeString}
+                  </SyntaxHighlighter>
+                </div>
+              </div>
+            );
+          },
+
+          // Table Styling
+          table: ({ children }) => (
+            <div className="overflow-x-auto my-3 border rounded border-gray-200">
+              <table className="min-w-full divide-y divide-gray-200 text-sm">
+                {children}
+              </table>
+            </div>
+          ),
+          thead: ({ children }) => (
+            <thead className="bg-gray-50">{children}</thead>
+          ),
+          tbody: ({ children }) => (
+            <tbody className="divide-y divide-gray-200 bg-white">
+              {children}
+            </tbody>
+          ),
+          tr: ({ children }) => <tr>{children}</tr>,
+          th: ({ children }) => (
+            <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              {children}
+            </th>
+          ),
+          td: ({ children }) => (
+            <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100 last:border-r-0">
+              {children}
+            </td>
+          ),
+        }}
+      >
+        {content}
+      </ReactMarkdown>
     </div>
   );
 }
@@ -15126,10 +15126,22 @@ export default function Header({
 <file path="docs/CONTEXT.md">
 # Project: SiteCue
 
+# 🚨 開発ルールの絶対遵守事項 (CRITICAL: PACKAGE MANAGER)
+
+- 本プロジェクトのパッケージマネージャーは **Bun** です。
+- **絶対に `npm`, `yarn`, `pnpm` を使用しないでください。**
+- パッケージの追加、インストール、スクリプトの実行は、必ず `bun add`, `bun install`, `bun run` を使用してください。
+- （AIエディタへ）自動コマンド提案で `npm install` や `npm run build` を提示することは固く禁じます。
+
 ## Overview
 
 SiteCueは、開発者向けの「コンテキスト認識型メモアプリ」です。
 Chrome拡張機能として動作し、現在開いているURLやドメインに紐付いたメモを表示します。
+
+## UI/UX Design Principles (引き算の美学)
+
+- **ノイズ除去**: 不要な情報や余白は徹底的に排除する（例：Domain Settingsが未設定の場合は、不自然な空白を作らず左詰めにし、不要なDOMはレンダリングしない）。
+- **ユーザーコントロール**: 設定した項目は、常に「解除（設定しない）」状態に戻せるようにする。
 
 ## Architecture
 
@@ -15145,14 +15157,23 @@ Chrome拡張機能として動作し、現在開いているURLやドメイン�
 - **Database**: Supabase (PostgreSQL)
   - RLS (Row Level Security): 必須。`user_id` に基づくアクセス制御を徹底する。
 
+## Markdown Rendering Rules
+
+- 拡張機能の「軽快さ」を死守するため、バンドルサイズを肥大化させる重いライブラリの使用を固く禁ずる。
+- **Text Rendering**: `react-markdown` を使用。
+  - プラグイン: `remark-breaks` (改行反映), `remark-gfm` (タスクリスト等のGFM対応)。
+- **Syntax Highlighting**: `react-syntax-highlighter` を使用。
+  - **重要**: 全言語バンドル（`Prism`）のインポートは厳禁。必ず `PrismLight` を使用し、必要な主要言語（js, ts, jsx, tsx, python, sql, bash, json, yaml, toml, html, css, diff, markdown）のみを個別に `registerLanguage` して使用すること。
+
 ## Authentication Strategy
 
 - **Provider**: Supabase Auth
-- **Methods**: Email/Password, OAuth (Google, GitHub)
+- **Methods**: OAuth (Google, GitHub) ※Email/Passwordは廃止済み
 - **Extension Constraints (重要)**:
   - Chrome拡張機能（SidePanel等）内では通常のリダイレクトによるOAuthフローが機能しない。
   - そのため、ソーシャルログインの実装・改修を行う際は、必ず `chrome.identity.launchWebAuthFlow` を使用すること。
   - Supabaseの `signInWithOAuth()` を呼び出す際は、`options.redirectTo` に `chrome.identity.getRedirectURL()` で動的に取得したURL（`https://<app-id>.chromiumapp.org/`）を必ず指定し、PKCEフローで認証を完了させること。
+  - **アカウント選択の強制**: Googleログイン時は必ず `options: { queryParams: { prompt: 'select_account' } }` を付与し、意図しないアカウントでの自動ログインを防ぐこと。
 
 ## Database Schema Strategy
 
@@ -15162,9 +15183,9 @@ Chrome拡張機能として動作し、現在開いているURLやドメイン�
 - `scope`: `'domain'` | `'exact'` (Check Constraint)
 - `note_type`: `'info'` | `'alert'` | `'idea'` (Check Constraint, Default: 'info')
 - `is_resolved`: `boolean` (Default: `false`)
-- `is_pinned`: `boolean` (Default: `false`) <-- 追加
+- `is_pinned`: `boolean` (Default: `false`)
   - **Local Context**: そのページ（URL）に関連する重要なメモとして、リスト最上位に固定表示する。
-- `is_favorite`: `boolean` (Default: `false`) <-- 追加
+- `is_favorite`: `boolean` (Default: `false`)
   - **Global Context**: どのページを開いていても参照できるよう、専用の「Favorites」セクションに常時表示する。
 - `url_pattern`:
   - **Normalization Rules**:
@@ -15200,10 +15221,8 @@ Chrome拡張機能として動作し、現在開いているURLやドメイン�
 4. **Extension Context**:
    - 拡張機能内でのデータ再取得（リフェッチ）は、Reactのライフサイクルだけでなく、`chrome.tabs.onUpdated` や `chrome.tabs.onActivated` などのブラウザイベントをトリガーにすること。
    - バックグラウンドでタブが切り替わった際も正しくコンテキストを追従させる必要がある。
-
-## Prompt Strategy
-
-- 各タスクの詳細は、都度与えられるプロンプトまたはGitHub Issueの記述に従うこと。
+5. **Development Workflow & Package Management**:
+   - ワークスペースの依存関係解決は必ず **Bun** に一任すること。`npm` や `pnpm` が裏で動いてロックファイルが競合しないよう、エディタ側の自動実行コマンド等にも細心の注意を払うこと。
 </file>
 
 <file path="extension/src/SidePanel.tsx">
@@ -15250,8 +15269,6 @@ interface TabChangeInfo {
 
 export default function SidePanel() {
   const [session, setSession] = useState<Session | null>(null);
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [authLoading, setAuthLoading] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
   const [sessionLoading, setSessionLoading] = useState(true);
@@ -15272,18 +15289,6 @@ export default function SidePanel() {
     return () => subscription.unsubscribe();
   }, []);
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setAuthLoading(true);
-    setAuthError(null);
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-    if (error) setAuthError(error.message);
-    setAuthLoading(false);
-  };
-
   const handleLogout = async () => {
     await supabase.auth.signOut();
   };
@@ -15302,6 +15307,12 @@ export default function SidePanel() {
         options: {
           redirectTo: redirectUrl,
           skipBrowserRedirect: true,
+          queryParams:
+            provider === "google"
+              ? {
+                prompt: "select_account",
+              }
+              : undefined,
         },
       });
 
@@ -15379,66 +15390,24 @@ export default function SidePanel() {
     return (
       <div className="w-full h-screen bg-gray-50 flex flex-col items-center justify-center p-6 font-sans">
         <div className="w-full max-w-xs bg-white p-6 rounded-lg shadow-md border border-gray-200">
-          <h1 className="text-xl font-bold text-center mb-6 text-neutral-800">
-            SiteCue Login
+          <h1 className="text-xl font-bold text-center mb-2 text-neutral-800">
+            Welcome to SiteCue
           </h1>
+          <p className="text-xs text-center text-gray-500 mb-6">
+            Sign in to sync your notes across devices
+          </p>
+
           {authError && (
-            <div className="text-rose-400 text-xs mb-4 text-center">
+            <div className="text-rose-400 text-xs mb-4 text-center bg-rose-50 p-2 rounded border border-rose-100">
               {authError}
             </div>
           )}
-          <form onSubmit={handleLogin} className="space-y-4">
-            <div>
-              <label className="block text-xs font-medium text-neutral-800 mb-1">
-                Email
-              </label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                className="w-full border border-gray-300 rounded p-2 text-sm focus:outline-none focus:ring-1 focus:ring-black"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-neutral-800 mb-1">
-                Password
-              </label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                className="w-full border border-gray-300 rounded p-2 text-sm focus:outline-none focus:ring-1 focus:ring-black"
-              />
-            </div>
-            <button
-              type="submit"
-              disabled={authLoading}
-              className="cursor-pointer w-full bg-black text-white py-2 rounded text-sm hover:bg-neutral-800 transition-colors disabled:opacity-50"
-            >
-              {authLoading ? (
-                <Loader2 className="w-4 h-4 animate-spin mx-auto" />
-              ) : (
-                "Sign In"
-              )}
-            </button>
-          </form>
-
-          <div className="relative my-6">
-            <div className="absolute inset-0 flex items-center">
-              <span className="w-full border-t border-gray-200" />
-            </div>
-            <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-white px-2 text-gray-500">Or continue with</span>
-            </div>
-          </div>
 
           <div className="space-y-3">
             <button
               onClick={() => handleSocialLogin("google")}
               disabled={authLoading}
-              className="w-full flex items-center justify-center gap-2 bg-white border border-gray-300 text-neutral-700 py-2 rounded text-sm hover:bg-gray-50 transition-colors disabled:opacity-50"
+              className="cursor-pointer w-full flex items-center justify-center gap-2 bg-white border border-gray-300 text-neutral-700 py-2.5 rounded text-sm font-medium hover:bg-gray-50 transition-colors disabled:opacity-50"
             >
               {/* Google Icon (SVG) */}
               <svg width="18" height="18" viewBox="0 0 24 24">
@@ -15459,24 +15428,20 @@ export default function SidePanel() {
                   d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
                 />
               </svg>
-              Google
+              Continue with Google
             </button>
             <button
               onClick={() => handleSocialLogin("github")}
               disabled={authLoading}
-              className="w-full flex items-center justify-center gap-2 bg-white border border-gray-300 text-neutral-700 py-2 rounded text-sm hover:bg-gray-50 transition-colors disabled:opacity-50"
+              className="cursor-pointer w-full flex items-center justify-center gap-2 bg-[#24292F] text-white py-2.5 rounded text-sm font-medium hover:bg-[#24292F]/90 transition-colors disabled:opacity-50"
             >
               {/* GitHub Icon (SVG Path) */}
               <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z" />
               </svg>
-              GitHub
+              Continue with GitHub
             </button>
           </div>
-
-          <p className="mt-4 text-xs text-center text-gray-500">
-            Don't have an account? Sign up on the web dashboard.
-          </p>
         </div>
       </div>
     );
