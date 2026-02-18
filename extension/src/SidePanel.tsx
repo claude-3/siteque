@@ -79,6 +79,12 @@ export default function SidePanel() {
         options: {
           redirectTo: redirectUrl,
           skipBrowserRedirect: true,
+          queryParams:
+            provider === "google"
+              ? {
+                prompt: "select_account",
+              }
+              : undefined,
         },
       });
 
