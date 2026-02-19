@@ -39,6 +39,8 @@ interface TabChangeInfo {
   url?: string;
 }
 
+const MAX_FREE_NOTES = 200;
+
 export default function SidePanel() {
   const [session, setSession] = useState<Session | null>(null);
   const [authLoading, setAuthLoading] = useState(false);
@@ -82,8 +84,8 @@ export default function SidePanel() {
           queryParams:
             provider === "google"
               ? {
-                  prompt: "select_account",
-                }
+                prompt: "select_account",
+              }
               : undefined,
         },
       });
@@ -632,10 +634,10 @@ function NotesUI({
         !n.is_favorite &&
         ((n.scope === "domain" &&
           n.url_pattern ===
-            (currentFullUrl ? getScopeUrls(currentFullUrl).domain : "")) ||
+          (currentFullUrl ? getScopeUrls(currentFullUrl).domain : "")) ||
           (n.scope === "exact" &&
             n.url_pattern ===
-              (currentFullUrl ? getScopeUrls(currentFullUrl).exact : ""))),
+            (currentFullUrl ? getScopeUrls(currentFullUrl).exact : ""))),
     )
     .sort((a, b) => {
       // 1. Pinned items first (Local Pin)
@@ -795,11 +797,10 @@ function NotesUI({
 
               {/* Content */}
               <div
-                className={`text-sm pr-8 mb-2 ${
-                  note.is_resolved
+                className={`text-sm pr-8 mb-2 ${note.is_resolved
                     ? "line-through text-neutral-500"
                     : "text-neutral-800"
-                }`}
+                  }`}
               >
                 <MarkdownRenderer content={note.content} />
               </div>
@@ -820,17 +821,17 @@ function NotesUI({
                   (note.scope === "domain"
                     ? getScopeUrls(currentFullUrl).domain
                     : getScopeUrls(currentFullUrl).exact) && (
-                  <a
-                    href={`https://${note.url_pattern}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-1 hover:text-blue-400 hover:underline transition-colors max-w-30 ml-1"
-                    title={`Open ${note.url_pattern}`}
-                  >
-                    <ExternalLink className="w-3 h-3 shrink-0" />
-                    <span className="truncate">{note.url_pattern}</span>
-                  </a>
-                )}
+                    <a
+                      href={`https://${note.url_pattern}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-1 hover:text-blue-400 hover:underline transition-colors max-w-30 ml-1"
+                      title={`Open ${note.url_pattern}`}
+                    >
+                      <ExternalLink className="w-3 h-3 shrink-0" />
+                      <span className="truncate">{note.url_pattern}</span>
+                    </a>
+                  )}
               </div>
             </div>
 
@@ -1010,13 +1011,13 @@ function NotesUI({
         </div>
 
         <form onSubmit={handleSubmit} className="flex gap-2 items-center">
-          {userPlan === "free" && totalNoteCount >= 200 ? (
+          {userPlan === "free" && totalNoteCount >= MAX_FREE_NOTES ? (
             <div className="w-full bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800 flex items-start gap-3">
               <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5" />
               <div>
                 <div className="font-bold mb-1">FREE Plan Limit Reached</div>
                 <p className="text-xs opacity-90">
-                  You have reached the 200 note limit. Please delete some
+                  You have reached the {MAX_FREE_NOTES} note limit. Please delete some
                   existing notes to create new ones.
                 </p>
               </div>
