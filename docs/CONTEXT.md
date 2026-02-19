@@ -53,7 +53,7 @@ Chrome拡張機能として動作し、現在開いているURLやドメイン�
 
 ### `sitecue_notes`
 
-- メモのメインテーブル。`user_id` (Auth), `content` などを保持。
+- メモのメインテーブル。`user_id` (Auth, **ON DELETE CASCADE**), `content` などを保持。
 - `scope`: `'domain'` | `'exact'` (Check Constraint)
 - `note_type`: `'info'` | `'alert'` | `'idea'` (Check Constraint, Default: 'info')
 - `is_resolved`: `boolean` (Default: `false`)
@@ -71,7 +71,7 @@ Chrome拡張機能として動作し、現在開いているURLやドメイン�
 ### `sitecue_profiles`
 
 - ユーザーのプランと利用制限を管理するテーブル。
-- `id`: uuid (FK to `auth.users.id`) - RLS必須
+- `id`: uuid (FK to `auth.users.id`, **ON DELETE CASCADE**) - RLS必須
 - `plan`: `'free'` | `'pro'` (Default: `'free'`)
 - **Access Control & Triggers**:
   - `handle_new_user`: 新規ユーザー登録時に自動で `free` プランのレコードを作成する。
