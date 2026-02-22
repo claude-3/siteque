@@ -756,6 +756,102 @@ export default async function Dashboard() {
 }
 </file>
 
+<file path="web/src/utils/supabase/client.ts">
+import { createBrowserClient } from '@supabase/ssr'
+
+export function createClient() {
+    return createBrowserClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    )
+}
+</file>
+
+<file path="web/src/utils/supabase/middleware.ts">
+import { createServerClient } from '@supabase/ssr'
+import { NextResponse, type NextRequest } from 'next/server'
+
+export async function updateSession(request: NextRequest) {
+    let supabaseResponse = NextResponse.next({
+        request,
+    })
+
+    const supabase = createServerClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        {
+            cookies: {
+                getAll() {
+                    return request.cookies.getAll()
+                },
+                setAll(cookiesToSet) {
+                    cookiesToSet.forEach(({ name, value, options }) =>
+                        request.cookies.set(name, value)
+                    )
+                    supabaseResponse = NextResponse.next({
+                        request,
+                    })
+                    cookiesToSet.forEach(({ name, value, options }) =>
+                        supabaseResponse.cookies.set(name, value, options)
+                    )
+                },
+            },
+        }
+    )
+
+    // refresh session if expired - required for Server Components
+    // https://supabase.com/docs/guides/auth/server-side/nextjs
+    const {
+        data: { user },
+    } = await supabase.auth.getUser()
+
+    if (
+        !user &&
+        !request.nextUrl.pathname.startsWith('/login') &&
+        !request.nextUrl.pathname.startsWith('/auth')
+    ) {
+        // no user, potentially respond by redirecting the user to the login page
+        const url = request.nextUrl.clone()
+        url.pathname = '/login'
+        return NextResponse.redirect(url)
+    }
+
+    return supabaseResponse
+}
+</file>
+
+<file path="web/src/utils/supabase/server.ts">
+import { createServerClient } from '@supabase/ssr'
+import { cookies } from 'next/headers'
+
+export async function createClient() {
+    const cookieStore = await cookies()
+
+    return createServerClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        {
+            cookies: {
+                getAll() {
+                    return cookieStore.getAll()
+                },
+                setAll(cookiesToSet) {
+                    try {
+                        cookiesToSet.forEach(({ name, value, options }) =>
+                            cookieStore.set(name, value, options)
+                        )
+                    } catch {
+                        // The `setAll` method was called from a Server Component.
+                        // This can be ignored if you have middleware refreshing
+                        // user sessions.
+                    }
+                },
+            },
+        }
+    )
+}
+</file>
+
 <file path="web/biome.json">
 {
 	"$schema": "https://biomejs.dev/schemas/2.3.13/schema.json",
@@ -790,6 +886,28 @@ export default async function Dashboard() {
 			}
 		}
 	}
+}
+</file>
+
+<file path="web/middleware.ts">
+import { type NextRequest } from 'next/server'
+import { updateSession } from '@/utils/supabase/middleware'
+
+export async function middleware(request: NextRequest) {
+    return await updateSession(request)
+}
+
+export const config = {
+    matcher: [
+        /*
+         * Match all request paths except for the ones starting with:
+         * - _next/static (static files)
+         * - _next/image (image optimization files)
+         * - favicon.ico (favicon file)
+         * Feel free to modify this pattern to include more paths.
+         */
+        '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    ],
 }
 </file>
 
@@ -891,8 +1009,11 @@ Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/bui
 }
 </file>
 
-<file path="README.md">
-# siteque
+<file path="web/wrangler.toml">
+name = "sitecue-web"
+compatibility_date = "2024-09-23"
+compatibility_flags = ["nodejs_compat"]
+pages_build_output_dir = ".vercel/output/static"
 </file>
 
 <file path="schema.sql">
@@ -1961,102 +2082,6 @@ ROLLBACK;
 .env.*.local
 </file>
 
-<file path="web/src/utils/supabase/client.ts">
-import { createBrowserClient } from '@supabase/ssr'
-
-export function createClient() {
-    return createBrowserClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    )
-}
-</file>
-
-<file path="web/src/utils/supabase/middleware.ts">
-import { createServerClient } from '@supabase/ssr'
-import { NextResponse, type NextRequest } from 'next/server'
-
-export async function updateSession(request: NextRequest) {
-    let supabaseResponse = NextResponse.next({
-        request,
-    })
-
-    const supabase = createServerClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-        {
-            cookies: {
-                getAll() {
-                    return request.cookies.getAll()
-                },
-                setAll(cookiesToSet) {
-                    cookiesToSet.forEach(({ name, value, options }) =>
-                        request.cookies.set(name, value)
-                    )
-                    supabaseResponse = NextResponse.next({
-                        request,
-                    })
-                    cookiesToSet.forEach(({ name, value, options }) =>
-                        supabaseResponse.cookies.set(name, value, options)
-                    )
-                },
-            },
-        }
-    )
-
-    // refresh session if expired - required for Server Components
-    // https://supabase.com/docs/guides/auth/server-side/nextjs
-    const {
-        data: { user },
-    } = await supabase.auth.getUser()
-
-    if (
-        !user &&
-        !request.nextUrl.pathname.startsWith('/login') &&
-        !request.nextUrl.pathname.startsWith('/auth')
-    ) {
-        // no user, potentially respond by redirecting the user to the login page
-        const url = request.nextUrl.clone()
-        url.pathname = '/login'
-        return NextResponse.redirect(url)
-    }
-
-    return supabaseResponse
-}
-</file>
-
-<file path="web/src/utils/supabase/server.ts">
-import { createServerClient } from '@supabase/ssr'
-import { cookies } from 'next/headers'
-
-export async function createClient() {
-    const cookieStore = await cookies()
-
-    return createServerClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-        {
-            cookies: {
-                getAll() {
-                    return cookieStore.getAll()
-                },
-                setAll(cookiesToSet) {
-                    try {
-                        cookiesToSet.forEach(({ name, value, options }) =>
-                            cookieStore.set(name, value, options)
-                        )
-                    } catch {
-                        // The `setAll` method was called from a Server Component.
-                        // This can be ignored if you have middleware refreshing
-                        // user sessions.
-                    }
-                },
-            },
-        }
-    )
-}
-</file>
-
 <file path="web/.env.example">
 # --- Supabase設定 (Auth & DB) ---
 # 開発中: http://127.0.0.1:54321
@@ -2076,33 +2101,43 @@ NEXT_PUBLIC_SITE_URL=http://localhost:3000
 # NEXT_PUBLIC_API_URL=http://localhost:8787
 </file>
 
-<file path="web/middleware.ts">
-import { type NextRequest } from 'next/server'
-import { updateSession } from '@/utils/supabase/middleware'
-
-export async function middleware(request: NextRequest) {
-    return await updateSession(request)
+<file path="web/package.json">
+{
+  "name": "web",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "pages:build": "bun x @cloudflare/next-on-pages",
+    "start": "next start"
+  },
+  "dependencies": {
+    "@supabase/ssr": "^0.8.0",
+    "@supabase/supabase-js": "^2.93.1",
+    "next": "^16.1.6",
+    "react": "19.2.3",
+    "react-dom": "19.2.3"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.3.13",
+    "@cloudflare/next-on-pages": "^1.13.16",
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "tailwindcss": "^4",
+    "typescript": "^5"
+  },
+  "ignoreScripts": [
+    "sharp",
+    "unrs-resolver"
+  ],
+  "trustedDependencies": [
+    "sharp",
+    "unrs-resolver"
+  ]
 }
-
-export const config = {
-    matcher: [
-        /*
-         * Match all request paths except for the ones starting with:
-         * - _next/static (static files)
-         * - _next/image (image optimization files)
-         * - favicon.ico (favicon file)
-         * Feel free to modify this pattern to include more paths.
-         */
-        '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
-    ],
-}
-</file>
-
-<file path="web/wrangler.toml">
-name = "sitecue-web"
-compatibility_date = "2024-09-23"
-compatibility_flags = ["nodejs_compat"]
-pages_build_output_dir = ".vercel/output/static"
 </file>
 
 <file path=".gitignore">
@@ -2176,6 +2211,79 @@ dist/
     "concurrently": "^9.2.1"
   }
 }
+</file>
+
+<file path="README.md">
+# sitecue
+
+> The simplest context-aware notepad for your browser. Free your mind from the burden of note management.
+
+Are you tired of organizing folders, tagging, and managing notes across different apps? **sitecue** is a minimalist Chrome Extension designed to liberate you from note management. 
+
+Our core philosophy is simple: **The notes you need should already be exactly where you are.**
+
+Leave your distilled thoughts, to-dos, or AI-generated summaries anchored directly to specific URLs. When you revisit a page, your notes silently appear. Experience the feeling of being truly lightweight on the web.
+
+## 💡 Philosophy
+- **Zero Management:** No folders, no tags, no search required. Your notes are inherently tied to the URL itself.
+- **No Clutter:** We intentionally excluded features like web clipping or text highlighting. 
+- **Context-Aware:** Notes automatically appear and hide based on your current active tab.
+- **Markdown Support:** Simple and clean text rendering.
+
+## 🛠 Tech Stack
+This project is a monorepo containing the extension, a web dashboard, and an API.
+
+- **Extension:** React, Vite, Tailwind CSS
+- **Web Dashboard:** Next.js (App Router)
+- **API:** Cloudflare Workers, Hono
+- **Database & Auth:** Supabase (PostgreSQL with RLS)
+- **Package Manager:** Bun
+
+## 📁 Project Structure
+
+| Directory | Description |
+| :--- | :--- |
+| `extension/` | Chrome Extension built with Vite and React. |
+| `web/` | Web dashboard built with Next.js. |
+| `api/` | Backend API built with Cloudflare Workers and Hono. |
+| `supabase/` | Database migrations, RLS policies, and tests. |
+| `docs/` | Project documentation and AI-driven development context. |
+
+## 🚀 Local Development
+
+To run this project locally, you need [Bun](https://bun.sh/) and [Docker](https://www.docker.com/) (for Supabase CLI) installed.
+
+### 1. Setup Environment Variables
+Copy the example env files and fill in your keys:
+```bash
+cp extension/.env.example extension/.env.development
+cp web/.env.example web/.env.local
+cp api/.dev.vars.example api/.dev.vars
+```
+
+### 2. Start Local Database
+Start the Supabase local instance:
+```bash
+bun run db:start
+```
+
+### 3. Start Development Servers
+This command runs the extension, web, and API dev servers concurrently:
+```bash
+bun install
+bun run dev
+```
+
+### 4. Load the Extension
+1. Open Chrome and navigate to `chrome://extensions/`
+2. Enable "Developer mode"
+3. Click "Load unpacked" and select the `extension/dist` directory.
+
+## 🛡️ Security
+All user data is protected by Row Level Security (RLS) policies at the database level, ensuring users can only access their own notes.
+
+## 📄 License
+MIT License
 </file>
 
 <file path="api/worker-configuration.d.ts">
@@ -13925,45 +14033,6 @@ s3_access_key = "env(S3_ACCESS_KEY)"
 s3_secret_key = "env(S3_SECRET_KEY)"
 </file>
 
-<file path="web/package.json">
-{
-  "name": "web",
-  "version": "0.1.0",
-  "private": true,
-  "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "pages:build": "bun x @cloudflare/next-on-pages",
-    "start": "next start"
-  },
-  "dependencies": {
-    "@supabase/ssr": "^0.8.0",
-    "@supabase/supabase-js": "^2.93.1",
-    "next": "^16.1.6",
-    "react": "19.2.3",
-    "react-dom": "19.2.3"
-  },
-  "devDependencies": {
-    "@biomejs/biome": "2.3.13",
-    "@cloudflare/next-on-pages": "^1.13.16",
-    "@tailwindcss/postcss": "^4",
-    "@types/node": "^20",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
-    "tailwindcss": "^4",
-    "typescript": "^5"
-  },
-  "ignoreScripts": [
-    "sharp",
-    "unrs-resolver"
-  ],
-  "trustedDependencies": [
-    "sharp",
-    "unrs-resolver"
-  ]
-}
-</file>
-
 <file path="extension/src/components/FilterBar.tsx">
 import { Info, AlertTriangle, Lightbulb, CheckSquare } from "lucide-react";
 
@@ -15110,7 +15179,7 @@ export default function Header({
 {
   "manifest_version": 3,
   "name": "sitecue",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "For those tired of cluttered highlighters. The simplest context-aware extension to leave only your core thoughts on any web page.",
   "action": {
     "default_title": "Open sitecue"
