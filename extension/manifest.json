@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "sitecue",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "For those tired of cluttered highlighters. The simplest context-aware extension to leave only your core thoughts on any web page.",
   "action": {
     "default_title": "Open sitecue"
@@ -34,4 +34,3 @@
     }
   }
 }
-
