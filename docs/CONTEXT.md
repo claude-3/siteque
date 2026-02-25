@@ -26,6 +26,10 @@ Chrome拡張機能として動作し、現在開いているURLやドメイン�
     - `lucide-react`: アイコン表示に使用。
   - **Communication Pattern**: Supabase JS Client (`@supabase/supabase-js`) を使用して **DBと直接通信する**。
   - ⛔ **Prohibited**: `extension/` から `api/` (Cloudflare Workers) を経由してCRUDを行ってはならない。`axios` や `fetch` でバックエンドを叩くのは禁止。
+  - 🛡️ **Permissions Strategy (権限戦略 - 引き算の美学)**:
+    - 拡張機能の `manifest.json` における権限要求は極限まで最小化し、ユーザーのインストール時に不要な警戒感（「〇〇上にある自分のデータの読み取りと変更」等）を与えないことを徹底する。
+    - 外部API（Supabase等）との通信は、原則として `host_permissions` を使用せず、サーバー側の **CORS設定** で拡張機能IDを許可することで通信を行うこと。
+    - ローカル開発用のURL（`http://localhost/*`, `http://127.0.0.1/*`）は開発体験（DX）維持のためソースコードの `manifest.json` の `host_permissions` に残し、Viteのビルドプロセス（`vite.config.ts`）にて本番ビルド時（`command === 'build'`）にのみ自動除外する仕組みを維持すること。
 - **Web**: Next.js (App Router)
   - Path: `web/`
 - **Database**: Supabase (PostgreSQL)

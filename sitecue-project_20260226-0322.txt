@@ -185,6 +185,25 @@ lerna-debug.log*
 .DS_Store
 </file>
 
+<file path="api/package.json">
+{
+  "name": "sitecue-api",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy --minify",
+    "cf-typegen": "wrangler types --env-interface CloudflareBindings"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.93.1",
+    "hono": "^4.11.6"
+  },
+  "devDependencies": {
+    "wrangler": "^4.4.0"
+  }
+}
+</file>
+
 <file path="api/README.md">
 ```txt
 npm install
@@ -223,6 +242,47 @@ const app = new Hono<{ Bindings: CloudflareBindings }>()
     "jsx": "react-jsx",
     "jsxImportSource": "hono/jsx"
   },
+}
+</file>
+
+<file path="api/wrangler.jsonc">
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "sitecue-api",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-01-27"
+  // "compatibility_flags": [
+  //   "nodejs_compat"
+  // ],
+  // "vars": {
+  //   "MY_VAR": "my-variable"
+  // },
+  // "kv_namespaces": [
+  //   {
+  //     "binding": "MY_KV_NAMESPACE",
+  //     "id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+  //   }
+  // ],
+  // "r2_buckets": [
+  //   {
+  //     "binding": "MY_BUCKET",
+  //     "bucket_name": "my-bucket"
+  //   }
+  // ],
+  // "d1_databases": [
+  //   {
+  //     "binding": "MY_DB",
+  //     "database_name": "my-database",
+  //     "database_id": ""
+  //   }
+  // ],
+  // "ai": {
+  //   "binding": "AI"
+  // },
+  // "observability": {
+  //   "enabled": true,
+  //   "head_sampling_rate": 1
+  // }
 }
 </file>
 
@@ -1202,1088 +1262,6 @@ export default app
 # ローカル開発用の設定 (Supabase Local)
 SUPABASE_URL=http://127.0.0.1:54321
 SUPABASE_ANON_KEY=your_local_anon_key_here
-</file>
-
-<file path="api/package.json">
-{
-  "name": "sitecue-api",
-  "type": "module",
-  "scripts": {
-    "dev": "wrangler dev",
-    "deploy": "wrangler deploy --minify",
-    "cf-typegen": "wrangler types --env-interface CloudflareBindings"
-  },
-  "dependencies": {
-    "@supabase/supabase-js": "^2.93.1",
-    "hono": "^4.11.6"
-  },
-  "devDependencies": {
-    "wrangler": "^4.4.0"
-  }
-}
-</file>
-
-<file path="api/wrangler.jsonc">
-{
-  "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "sitecue-api",
-  "main": "src/index.ts",
-  "compatibility_date": "2026-01-27"
-  // "compatibility_flags": [
-  //   "nodejs_compat"
-  // ],
-  // "vars": {
-  //   "MY_VAR": "my-variable"
-  // },
-  // "kv_namespaces": [
-  //   {
-  //     "binding": "MY_KV_NAMESPACE",
-  //     "id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-  //   }
-  // ],
-  // "r2_buckets": [
-  //   {
-  //     "binding": "MY_BUCKET",
-  //     "bucket_name": "my-bucket"
-  //   }
-  // ],
-  // "d1_databases": [
-  //   {
-  //     "binding": "MY_DB",
-  //     "database_name": "my-database",
-  //     "database_id": ""
-  //   }
-  // ],
-  // "ai": {
-  //   "binding": "AI"
-  // },
-  // "observability": {
-  //   "enabled": true,
-  //   "head_sampling_rate": 1
-  // }
-}
-</file>
-
-<file path="extension/scripts/repro_406.ts">
-import { createClient } from '@supabase/supabase-js';
-
-const SUPABASE_URL = process.env.VITE_SUPABASE_URL || 'http://127.0.0.1:54321';
-const SUPABASE_KEY = process.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_ACJWlzQHlZjBrEguHvfOxg_3BJgxAaH';
-
-console.log('Connecting to Supabase:', SUPABASE_URL);
-
-const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
-    auth: {
-        persistSession: false
-    }
-});
-
-async function run() {
-    // 1. Sign Up User
-    const email = `repro_${Date.now()}@example.com`;
-    const password = 'password123';
-
-    console.log(`Signing up user: ${email}`);
-    const { data: { user, session }, error: signUpError } = await supabase.auth.signUp({
-        email,
-        password
-    });
-
-    if (signUpError) {
-        console.error('Sign up failed:', signUpError);
-        return;
-    }
-
-    if (!user) {
-        console.error('No user returned');
-        return;
-    }
-
-    console.log('User signed up:', user.id);
-
-    // 2. Insert Note
-    const hostname = 'example.com';
-    const fullPath = 'example.com/foo?q=1';
-
-    console.log('Inserting note...');
-    const { error: insertError } = await supabase.from('sitecue_notes').insert({
-        user_id: user.id,
-        url_pattern: hostname,
-        content: 'Test Note',
-        scope: 'domain'
-    });
-
-    if (insertError) {
-        console.error('Insert failed:', insertError);
-        // Continue anyway to see if select works (maybe RLS prevented insert but we want to test select)
-    } else {
-        console.log('Note inserted successfully.');
-    }
-
-    // 3. Run the problematic query
-    console.log('Running query from background.ts...');
-
-    // Test 1: Normal match
-    const orQuery = `and(scope.eq.domain,url_pattern.eq.${hostname}),and(scope.eq.exact,url_pattern.eq.${fullPath})`;
-
-    const { count, error, status, statusText } = await supabase
-        .from('sitecue_notes')
-        .select('*', { count: 'exact', head: true })
-        .eq('is_resolved', false)
-        .or(orQuery);
-
-    console.log('Query Result (Match):', { count, status, statusText });
-
-    if (error) {
-        console.error('Query Error (Match):', error);
-    }
-
-    // Test 2: Comma in URL
-    const complexHostname = 'example.com';
-    const complexPath = 'example.com/foo,bar'; // Comma might break .or() parser if not handled
-    // Notes logic usually normalizes URL first, but let's see if query breaks.
-
-    const orQueryComplex = `and(scope.eq.domain,url_pattern.eq.${complexHostname}),and(scope.eq.exact,url_pattern.eq.${complexPath})`;
-    console.log('Running query with complex path:', orQueryComplex);
-
-    const { count: count2, error: error2, status: status2, statusText: statusText2 } = await supabase
-        .from('sitecue_notes')
-        .select('*', { count: 'exact', head: true })
-        .eq('is_resolved', false)
-        .or(orQueryComplex);
-
-    console.log('Query Result (Complex):', { count: count2, status: status2, statusText: statusText2 });
-    if (error2) {
-        console.error('Query Error (Complex):', error2);
-    }
-
-    // Test 4: Comma in URL with Quoting
-    // PostgREST requires values with reserved characters to be double-quoted.
-    // However, since we are inside a string, we need to escape the quotes.
-    const orQueryComplexFixed = `and(scope.eq.domain,url_pattern.eq."${complexHostname}"),and(scope.eq.exact,url_pattern.eq."${complexPath}")`;
-    console.log('Running fixed query with complex path:', orQueryComplexFixed);
-
-    const { count: count4, error: error4, status: status4, statusText: statusText4 } = await supabase
-        .from('sitecue_notes')
-        .select('*', { count: 'exact', head: true })
-        .eq('is_resolved', false)
-        .or(orQueryComplexFixed);
-
-    console.log('Query Result (Fixed):', { count: count4, status: status4, statusText: statusText4 });
-    if (error4) {
-        console.error('Query Error (Fixed):', error4);
-    }
-
-    // Test 3: No match
-    const noMatchHost = 'nomatch.com';
-    const noMatchPath = 'nomatch.com/foo';
-    const orQueryNoMatch = `and(scope.eq.domain,url_pattern.eq.${noMatchHost}),and(scope.eq.exact,url_pattern.eq.${noMatchPath})`;
-
-    const { count: count3, error: error3, status: status3, statusText: statusText3 } = await supabase
-        .from('sitecue_notes')
-        .select('*', { count: 'exact', head: true })
-        .eq('is_resolved', false)
-        .or(orQueryNoMatch);
-
-    console.log('Query Result (No Match):', { count: count3, status: status3, statusText: statusText3 });
-    if (error3) {
-        console.error('Query Error (No Match):', error3);
-    }
-}
-
-run().catch(console.error);
-</file>
-
-<file path="extension/.env.example">
-# --- 共通の変数名 ---
-
-# APIの接続先
-# 開発中: http://localhost:8787
-# 本番: https://sitecue-api.[your-subdomain].workers.dev
-VITE_API_URL=
-
-# Supabaseの接続先
-# 開発中: http://127.0.0.1:54321
-# 本番: https://[project-ref].supabase.co
-VITE_SUPABASE_URL=
-
-# Supabaseの匿名キー (Anon Key)
-VITE_SUPABASE_ANON_KEY=
-</file>
-
-<file path="extension/index.html">
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/sitecue_icon16.png" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>extension</title>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
-</html>
-</file>
-
-<file path="extension/vite.config.ts">
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
-import { crx } from '@crxjs/vite-plugin'
-import manifest from './manifest.json'
-import tailwindcss from '@tailwindcss/vite'
-
-export default defineConfig({
-  plugins: [
-    react(),
-    tailwindcss(),
-    crx({ manifest }),
-  ],
-  server: {
-    port: 5173,
-    strictPort: true,
-    hmr: {
-      port: 5173,
-    },
-    cors: true,
-  },
-})
-</file>
-
-<file path="supabase/migrations/20260129162205_remote_schema.sql">
-
-</file>
-
-<file path="supabase/migrations/20260129174731_remote_schema.sql">
-drop extension if exists "pg_net";
-
-
-  create table "public"."sitecue_notes" (
-    "id" uuid not null default gen_random_uuid(),
-    "user_id" uuid not null,
-    "url_pattern" text not null,
-    "content" text not null,
-    "created_at" timestamp with time zone not null default timezone('utc'::text, now()),
-    "updated_at" timestamp with time zone not null default timezone('utc'::text, now())
-      );
-
-
-alter table "public"."sitecue_notes" enable row level security;
-
-
-  create table "public"."todo01_profiles" (
-    "id" uuid not null,
-    "display_name" text,
-    "created_at" timestamp with time zone not null default timezone('utc'::text, now()),
-    "updated_at" timestamp with time zone not null default timezone('utc'::text, now())
-      );
-
-
-alter table "public"."todo01_profiles" enable row level security;
-
-
-  create table "public"."todo01_tasks" (
-    "id" uuid not null default gen_random_uuid(),
-    "user_id" uuid not null,
-    "title" text not null,
-    "is_complete" boolean default false,
-    "created_at" timestamp with time zone not null default timezone('utc'::text, now())
-      );
-
-
-alter table "public"."todo01_tasks" enable row level security;
-
-CREATE UNIQUE INDEX sitecue_notes_pkey ON public.sitecue_notes USING btree (id);
-
-CREATE INDEX sitecue_notes_url_idx ON public.sitecue_notes USING btree (url_pattern);
-
-CREATE INDEX sitecue_notes_user_idx ON public.sitecue_notes USING btree (user_id);
-
-CREATE UNIQUE INDEX todo01_profiles_pkey ON public.todo01_profiles USING btree (id);
-
-CREATE UNIQUE INDEX todo01_tasks_pkey ON public.todo01_tasks USING btree (id);
-
-alter table "public"."sitecue_notes" add constraint "sitecue_notes_pkey" PRIMARY KEY using index "sitecue_notes_pkey";
-
-alter table "public"."todo01_profiles" add constraint "todo01_profiles_pkey" PRIMARY KEY using index "todo01_profiles_pkey";
-
-alter table "public"."todo01_tasks" add constraint "todo01_tasks_pkey" PRIMARY KEY using index "todo01_tasks_pkey";
-
-alter table "public"."sitecue_notes" add constraint "sitecue_notes_user_id_fkey" FOREIGN KEY (user_id) REFERENCES auth.users(id) not valid;
-
-alter table "public"."sitecue_notes" validate constraint "sitecue_notes_user_id_fkey";
-
-alter table "public"."todo01_profiles" add constraint "todo01_profiles_id_fkey" FOREIGN KEY (id) REFERENCES auth.users(id) ON DELETE CASCADE not valid;
-
-alter table "public"."todo01_profiles" validate constraint "todo01_profiles_id_fkey";
-
-alter table "public"."todo01_tasks" add constraint "todo01_tasks_user_id_fkey" FOREIGN KEY (user_id) REFERENCES public.todo01_profiles(id) ON DELETE CASCADE not valid;
-
-alter table "public"."todo01_tasks" validate constraint "todo01_tasks_user_id_fkey";
-
-set check_function_bodies = off;
-
-CREATE OR REPLACE FUNCTION public.handle_new_user_todo01()
- RETURNS trigger
- LANGUAGE plpgsql
- SECURITY DEFINER
-AS $function$
-begin
-  insert into public.todo01_profiles (id, display_name)
-  values (new.id, new.raw_user_meta_data->>'full_name');
-  return new;
-end;
-$function$
-;
-
-grant delete on table "public"."sitecue_notes" to "anon";
-
-grant insert on table "public"."sitecue_notes" to "anon";
-
-grant references on table "public"."sitecue_notes" to "anon";
-
-grant select on table "public"."sitecue_notes" to "anon";
-
-grant trigger on table "public"."sitecue_notes" to "anon";
-
-grant truncate on table "public"."sitecue_notes" to "anon";
-
-grant update on table "public"."sitecue_notes" to "anon";
-
-grant delete on table "public"."sitecue_notes" to "authenticated";
-
-grant insert on table "public"."sitecue_notes" to "authenticated";
-
-grant references on table "public"."sitecue_notes" to "authenticated";
-
-grant select on table "public"."sitecue_notes" to "authenticated";
-
-grant trigger on table "public"."sitecue_notes" to "authenticated";
-
-grant truncate on table "public"."sitecue_notes" to "authenticated";
-
-grant update on table "public"."sitecue_notes" to "authenticated";
-
-grant delete on table "public"."sitecue_notes" to "service_role";
-
-grant insert on table "public"."sitecue_notes" to "service_role";
-
-grant references on table "public"."sitecue_notes" to "service_role";
-
-grant select on table "public"."sitecue_notes" to "service_role";
-
-grant trigger on table "public"."sitecue_notes" to "service_role";
-
-grant truncate on table "public"."sitecue_notes" to "service_role";
-
-grant update on table "public"."sitecue_notes" to "service_role";
-
-grant delete on table "public"."todo01_profiles" to "anon";
-
-grant insert on table "public"."todo01_profiles" to "anon";
-
-grant references on table "public"."todo01_profiles" to "anon";
-
-grant select on table "public"."todo01_profiles" to "anon";
-
-grant trigger on table "public"."todo01_profiles" to "anon";
-
-grant truncate on table "public"."todo01_profiles" to "anon";
-
-grant update on table "public"."todo01_profiles" to "anon";
-
-grant delete on table "public"."todo01_profiles" to "authenticated";
-
-grant insert on table "public"."todo01_profiles" to "authenticated";
-
-grant references on table "public"."todo01_profiles" to "authenticated";
-
-grant select on table "public"."todo01_profiles" to "authenticated";
-
-grant trigger on table "public"."todo01_profiles" to "authenticated";
-
-grant truncate on table "public"."todo01_profiles" to "authenticated";
-
-grant update on table "public"."todo01_profiles" to "authenticated";
-
-grant delete on table "public"."todo01_profiles" to "service_role";
-
-grant insert on table "public"."todo01_profiles" to "service_role";
-
-grant references on table "public"."todo01_profiles" to "service_role";
-
-grant select on table "public"."todo01_profiles" to "service_role";
-
-grant trigger on table "public"."todo01_profiles" to "service_role";
-
-grant truncate on table "public"."todo01_profiles" to "service_role";
-
-grant update on table "public"."todo01_profiles" to "service_role";
-
-grant delete on table "public"."todo01_tasks" to "anon";
-
-grant insert on table "public"."todo01_tasks" to "anon";
-
-grant references on table "public"."todo01_tasks" to "anon";
-
-grant select on table "public"."todo01_tasks" to "anon";
-
-grant trigger on table "public"."todo01_tasks" to "anon";
-
-grant truncate on table "public"."todo01_tasks" to "anon";
-
-grant update on table "public"."todo01_tasks" to "anon";
-
-grant delete on table "public"."todo01_tasks" to "authenticated";
-
-grant insert on table "public"."todo01_tasks" to "authenticated";
-
-grant references on table "public"."todo01_tasks" to "authenticated";
-
-grant select on table "public"."todo01_tasks" to "authenticated";
-
-grant trigger on table "public"."todo01_tasks" to "authenticated";
-
-grant truncate on table "public"."todo01_tasks" to "authenticated";
-
-grant update on table "public"."todo01_tasks" to "authenticated";
-
-grant delete on table "public"."todo01_tasks" to "service_role";
-
-grant insert on table "public"."todo01_tasks" to "service_role";
-
-grant references on table "public"."todo01_tasks" to "service_role";
-
-grant select on table "public"."todo01_tasks" to "service_role";
-
-grant trigger on table "public"."todo01_tasks" to "service_role";
-
-grant truncate on table "public"."todo01_tasks" to "service_role";
-
-grant update on table "public"."todo01_tasks" to "service_role";
-
-
-  create policy "Users can delete their own notes"
-  on "public"."sitecue_notes"
-  as permissive
-  for delete
-  to public
-using ((auth.uid() = user_id));
-
-
-
-  create policy "Users can insert their own notes"
-  on "public"."sitecue_notes"
-  as permissive
-  for insert
-  to public
-with check ((auth.uid() = user_id));
-
-
-
-  create policy "Users can update their own notes"
-  on "public"."sitecue_notes"
-  as permissive
-  for update
-  to public
-using ((auth.uid() = user_id));
-
-
-
-  create policy "Users can view their own notes"
-  on "public"."sitecue_notes"
-  as permissive
-  for select
-  to public
-using ((auth.uid() = user_id));
-
-
-
-  create policy "Users can insert own profile"
-  on "public"."todo01_profiles"
-  as permissive
-  for insert
-  to public
-with check ((auth.uid() = id));
-
-
-
-  create policy "Users can update own profile"
-  on "public"."todo01_profiles"
-  as permissive
-  for update
-  to public
-using ((auth.uid() = id));
-
-
-
-  create policy "Users can view own profile"
-  on "public"."todo01_profiles"
-  as permissive
-  for select
-  to public
-using ((auth.uid() = id));
-
-
-
-  create policy "Users can perform all operations on own tasks"
-  on "public"."todo01_tasks"
-  as permissive
-  for all
-  to public
-using ((auth.uid() = user_id));
-</file>
-
-<file path="supabase/migrations/20260129193252_add_update_policy.sql">
-create policy "Enable update for users based on user_id"
-  on "public"."sitecue_notes"
-  as permissive
-  for update
-  to authenticated
-using ((auth.uid() = user_id))
-with check ((auth.uid() = user_id));
-</file>
-
-<file path="supabase/migrations/20260203100000_add_scope_to_notes.sql">
--- Add scope column to sitecue_notes
-ALTER TABLE sitecue_notes ADD COLUMN scope text NOT NULL DEFAULT 'domain';
-
--- Add check constraint to ensure only 'domain' or 'exact' values are allowed
-ALTER TABLE sitecue_notes ADD CONSTRAINT sitecue_notes_scope_check CHECK (scope IN ('domain', 'exact'));
-</file>
-
-<file path="supabase/migrations/20260203110000_create_domain_settings.sql">
-create table sitecue_domain_settings (
-  id uuid default gen_random_uuid() primary key,
-  user_id uuid references auth.users(id) not null,
-  domain text not null,
-  label text,
-  color text,
-  created_at timestamp with time zone default timezone('utc'::text, now()) not null,
-  updated_at timestamp with time zone default timezone('utc'::text, now()) not null,
-  unique(user_id, domain)
-);
-
-alter table sitecue_domain_settings enable row level security;
-
-create policy "Users can view their own domain settings"
-  on sitecue_domain_settings for select
-  using (auth.uid() = user_id);
-
-create policy "Users can insert their own domain settings"
-  on sitecue_domain_settings for insert
-  with check (auth.uid() = user_id);
-
-create policy "Users can update their own domain settings"
-  on sitecue_domain_settings for update
-  using (auth.uid() = user_id);
-
-create policy "Users can delete their own domain settings"
-  on sitecue_domain_settings for delete
-  using (auth.uid() = user_id);
-</file>
-
-<file path="supabase/migrations/20260203120000_add_note_type.sql">
--- Add note_type column to sitecue_notes table
-alter table "public"."sitecue_notes" 
-add column "note_type" text not null default 'info',
-add constraint "sitecue_notes_note_type_check" check (note_type in ('info', 'alert', 'idea'));
-</file>
-
-<file path="supabase/migrations/20260204120000_add_is_resolved.sql">
--- Add is_resolved column to sitecue_notes table
-ALTER TABLE sitecue_notes
-ADD COLUMN is_resolved boolean NOT NULL DEFAULT false;
-</file>
-
-<file path="supabase/migrations/20260206101100_create_sitecue_links.sql">
-create table "public"."sitecue_links" (
-    "id" uuid not null default gen_random_uuid(),
-    "user_id" uuid not null default auth.uid(),
-    "domain" text not null,
-    "target_url" text not null,
-    "label" text not null,
-    "type" text not null,
-    "created_at" timestamp with time zone not null default now()
-);
-
-alter table "public"."sitecue_links" enable row level security;
-
-CREATE UNIQUE INDEX sitecue_links_pkey ON public.sitecue_links USING btree (id);
-
-alter table "public"."sitecue_links" add constraint "sitecue_links_pkey" PRIMARY KEY using index "sitecue_links_pkey";
-
-alter table "public"."sitecue_links" add constraint "sitecue_links_user_id_fkey" FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE;
-
-alter table "public"."sitecue_links" add constraint "sitecue_links_type_check" CHECK (type = ANY (ARRAY['related'::text, 'env'::text]));
-
-create index "sitecue_links_domain_idx" on "public"."sitecue_links" using btree (domain);
-
-create index "sitecue_links_target_url_idx" on "public"."sitecue_links" using btree (target_url);
-
-create policy "Users can perform all actions on their own links"
-on "public"."sitecue_links"
-as permissive
-for all
-to authenticated
-using ((auth.uid() = user_id))
-with check ((auth.uid() = user_id));
-</file>
-
-<file path="supabase/migrations/20260209163000_add_is_pinned_to_notes.sql">
-alter table "public"."sitecue_notes" add column "is_pinned" boolean not null default false;
-</file>
-
-<file path="supabase/migrations/20260209174000_add_is_favorite_to_notes.sql">
-alter table "public"."sitecue_notes" add column "is_favorite" boolean not null default false;
-</file>
-
-<file path="supabase/migrations/20260218100000_create_profiles_and_limits.sql">
--- Create sitecue_profiles table
-create table if not exists public.sitecue_profiles (
-  id uuid references auth.users on delete cascade not null primary key,
-  plan text not null default 'free' check (plan in ('free', 'pro')),
-  created_at timestamp with time zone default timezone('utc'::text, now()) not null
-);
-
--- Enable RLS
-alter table public.sitecue_profiles enable row level security;
-
--- Create policies
-create policy "Users can view their own profile."
-  on public.sitecue_profiles for select
-  using ( auth.uid() = id );
-
-create policy "Users can update their own profile."
-  on public.sitecue_profiles for update
-  using ( auth.uid() = id );
-
--- Function to handle new user creation
-create or replace function public.handle_new_user()
-returns trigger as $$
-begin
-  insert into public.sitecue_profiles (id, plan)
-  values (new.id, 'free');
-  return new;
-end;
-$$ language plpgsql security definer;
-
--- Trigger for new user creation
-create or replace trigger on_auth_user_created
-  after insert on auth.users
-  for each row execute procedure public.handle_new_user();
-
--- Function to check note limit
-create or replace function public.check_note_limit()
-returns trigger as $$
-declare
-  user_plan text;
-  note_count int;
-begin
-  -- Get user plan
-  select plan into user_plan
-  from public.sitecue_profiles
-  where id = auth.uid();
-
-  -- If plan is free, check count
-  if user_plan = 'free' then
-    select count(*) into note_count
-    from public.sitecue_notes
-    where user_id = auth.uid();
-
-    if note_count >= 200 then
-      raise exception 'Free plan limit reached (200 notes). Please upgrade to Pro.';
-    end if;
-  end if;
-
-  return new;
-end;
-$$ language plpgsql security definer;
-
--- Trigger for note limit (before insert)
-create or replace trigger on_note_created_check_limit
-  before insert on public.sitecue_notes
-  for each row execute procedure public.check_note_limit();
-
--- Backfill existing users
-insert into public.sitecue_profiles (id, plan)
-select id, 'free'
-from auth.users
-where id not in (select id from public.sitecue_profiles);
-</file>
-
-<file path="supabase/migrations/20260219203527_add_cascade_delete_notes.sql">
--- Migration to add ON DELETE CASCADE to sitecue_notes.user_id foreign key
-
--- Drop the existing constraint (assuming default name sitecue_notes_user_id_fkey)
-ALTER TABLE sitecue_notes
-DROP CONSTRAINT IF EXISTS sitecue_notes_user_id_fkey;
-
--- Re-add the constraint with ON DELETE CASCADE
-ALTER TABLE sitecue_notes
-ADD CONSTRAINT sitecue_notes_user_id_fkey
-FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE;
-</file>
-
-<file path="supabase/snippets/Untitled query 254.sql">
-DELETE FROM supabase_migrations.schema_migrations
-WHERE version LIKE '2026%';
-</file>
-
-<file path="supabase/snippets/Untitled query 463.sql">
-SELECT
-    conname AS constraint_name,
-    pg_get_constraintdef(oid) AS constraint_definition
-FROM pg_constraint
-WHERE conrelid = 'public.sitecue_notes'::regclass;
-</file>
-
-<file path="supabase/tests/rls_test.sql">
-BEGIN;
-
--- Enable pgTAP if not already enabled
-CREATE EXTENSION IF NOT EXISTS pgtap;
-
-SELECT plan(12); -- Update the plan count as we add tests
-
--- 1. Create test users (helpers)
--- We need to mock auth.users.
--- Since we cannot easily insert into auth.users in standard migrations without raw sql or specific setup,
--- we'll rely on `supautils` or just mocking the `auth.uid()` function if possible,
--- OR better, we insert into `auth.users` if we have permissions.
--- In Supabase local testing, we usually have service_role privileges.
-
--- Create two test users
-INSERT INTO auth.users (id, email) VALUES
-  ('11111111-1111-1111-1111-111111111111', 'user1@example.com'),
-  ('22222222-2222-2222-2222-222222222222', 'user2@example.com');
-
--- 2. Create test data (as service_role to ensure it exists)
--- Note 1 created by User 1
-INSERT INTO public.sitecue_notes (user_id, url_pattern, content, scope) VALUES
-  ('11111111-1111-1111-1111-111111111111', 'https://example.com/*', 'User 1 Note', 'domain');
-
--- Note 2 created by User 2
-INSERT INTO public.sitecue_notes (user_id, url_pattern, content, scope) VALUES
-  ('22222222-2222-2222-2222-222222222222', 'https://example.org/*', 'User 2 Note', 'domain');
-
-
--- ============================================================
--- Test Case 1: Anonymous User (No Auth)
--- ============================================================
-
--- Switch to anon role
-SET ROLE anon;
-
--- Should not see any notes
-SELECT is(count(*), 0::bigint, 'Anon user should see 0 notes') FROM public.sitecue_notes;
-
--- Should not be able to insert
-PREPARE anon_insert AS INSERT INTO public.sitecue_notes (user_id, url_pattern, content) VALUES ('11111111-1111-1111-1111-111111111111', 'https://hacker.com', 'Hacker Note');
-SELECT throws_ok('anon_insert', '42501', NULL, 'Anon user cannot insert notes');
-
-
--- ============================================================
--- Test Case 2: Authenticated User 1
--- ============================================================
-
--- Authenticate as User 1
-SET ROLE authenticated;
-SET request.jwt.claim.sub = '11111111-1111-1111-1111-111111111111';
-SET request.jwt.claim.role = 'authenticated';
-
--- Should see only User 1's notes
-SELECT is(count(*), 1::bigint, 'User 1 should see exactly 1 note') FROM public.sitecue_notes;
-SELECT results_eq(
-    'SELECT content FROM public.sitecue_notes',
-    ARRAY['User 1 Note'],
-    'User 1 should see their own note content'
-);
-
--- Should be able to insert own note
-INSERT INTO public.sitecue_notes (user_id, url_pattern, content, scope)
-VALUES ('11111111-1111-1111-1111-111111111111', 'https://test.com', 'User 1 New Note', 'domain');
-
-SELECT is(count(*), 2::bigint, 'User 1 should have 2 notes now') FROM public.sitecue_notes;
-
--- Should NOT be able to insert note for User 2
-PREPARE user1_insert_for_user2 AS INSERT INTO public.sitecue_notes (user_id, url_pattern, content) VALUES ('22222222-2222-2222-2222-222222222222', 'https://malicious.com', 'Malicious Note');
-SELECT throws_ok('user1_insert_for_user2', '42501', NULL, 'User 1 cannot insert note for User 2');
-
--- Should be able to update own note
-UPDATE public.sitecue_notes SET content = 'User 1 Updated Note' WHERE content = 'User 1 Note';
-SELECT results_eq(
-    'SELECT content FROM public.sitecue_notes WHERE content = ''User 1 Updated Note''',
-    ARRAY['User 1 Updated Note'],
-    'User 1 can update their own note'
-);
-
--- Should be able to delete own note
-DELETE FROM public.sitecue_notes WHERE content = 'User 1 Updated Note';
-SELECT is(count(*), 1::bigint, 'User 1 should have 1 note after delete') FROM public.sitecue_notes;
-
-
--- ============================================================
--- Test Case 3: Authenticated User 2
--- ============================================================
-
--- Authenticate as User 2
-SET request.jwt.claim.sub = '22222222-2222-2222-2222-222222222222';
-
--- Should see only User 2's notes
-SELECT is(count(*), 1::bigint, 'User 2 should see exactly 1 note') FROM public.sitecue_notes;
-SELECT results_eq(
-    'SELECT content FROM public.sitecue_notes',
-    ARRAY['User 2 Note'],
-    'User 2 should see their own note content'
-);
-
--- Should NOT see User 1's notes (User 1 has 1 note left: 'User 1 New Note')
-SELECT is_empty(
-    'SELECT * FROM public.sitecue_notes WHERE user_id = ''11111111-1111-1111-1111-111111111111''',
-    'User 2 should not see User 1 notes'
-);
-
--- Attempt update on User 1's note (should affect 0 rows or throw)
--- In RLS, typically updates purely filters out rows, so it updates 0 rows.
--- Unless utilizing `WITH CHECK`, but here we are selecting rows to update.
-PREPARE user2_update_user1 AS UPDATE public.sitecue_notes SET content = 'Hacked' WHERE user_id = '11111111-1111-1111-1111-111111111111';
--- For standard RLS update, it just doesn't find the row.
--- Let's check if rows affected is 0.
--- But standard pgTAP doesn't easily check affected rows count without diagnostics.
--- We can check if content changed.
-EXECUTE user2_update_user1;
-
--- Switch back to Service Role to verify integrity
-SET ROLE service_role;
-SELECT results_eq(
-    'SELECT content FROM public.sitecue_notes WHERE user_id = ''11111111-1111-1111-1111-111111111111''',
-    ARRAY['User 1 New Note'],
-    'User 1 note should remain unchanged after User 2 update attempt'
-);
-
-
--- ============================================================
--- Clean up
--- ============================================================
-SELECT * FROM finish();
-ROLLBACK;
-</file>
-
-<file path="supabase/.gitignore">
-# Supabase
-.branches
-.temp
-
-# dotenvx
-.env.keys
-.env.local
-.env.*.local
-</file>
-
-<file path="web/.env.example">
-# --- Supabase設定 (Auth & DB) ---
-# 開発中: http://127.0.0.1:54321
-# 本番: https://[project-ref].supabase.co
-NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321
-
-# Supabaseの匿名キー (Anon Key)
-NEXT_PUBLIC_SUPABASE_ANON_KEY=
-
-# --- サイトのURL (Authのリダイレクト用) ---
-# 開発中: http://localhost:3000
-# 本番: https://your-production-site.com
-NEXT_PUBLIC_SITE_URL=http://localhost:3000
-
-# --- APIサーバー (Cloudflare Workers) ---
-# ※もしNext.jsからもメモを表示/編集する場合のみ必要
-# NEXT_PUBLIC_API_URL=http://localhost:8787
-</file>
-
-<file path="web/package.json">
-{
-  "name": "web",
-  "version": "0.1.0",
-  "private": true,
-  "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "pages:build": "bun x @cloudflare/next-on-pages",
-    "start": "next start"
-  },
-  "dependencies": {
-    "@supabase/ssr": "^0.8.0",
-    "@supabase/supabase-js": "^2.93.1",
-    "next": "^16.1.6",
-    "react": "19.2.3",
-    "react-dom": "19.2.3"
-  },
-  "devDependencies": {
-    "@biomejs/biome": "2.3.13",
-    "@cloudflare/next-on-pages": "^1.13.16",
-    "@tailwindcss/postcss": "^4",
-    "@types/node": "^20",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
-    "tailwindcss": "^4",
-    "typescript": "^5"
-  },
-  "ignoreScripts": [
-    "sharp",
-    "unrs-resolver"
-  ],
-  "trustedDependencies": [
-    "sharp",
-    "unrs-resolver"
-  ]
-}
-</file>
-
-<file path=".gitignore">
-# --- Global / General ---
-node_modules
-
-# Macのシステムファイル
-.DS_Store
-*.pem
-
-# --- Logs ---
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-.pnpm-debug.log*
-bun.debug.log*
-
-# --- Environment Variables (重要) ---
-.env
-.env*.local
-.env.local
-.env.*
-# example ファイルだけは例外として許可する
-!.env.example
-!.env*.example
-
-# --- Web (Next.js) ---
-.next/
-out/
-build/
-.vercel
-
-# TypeScript definition
-next-env.d.ts
-*.tsbuildinfo
-
-# --- API (Hono / Cloudflare Workers) ---
-# Cloudflareのローカル開発用キャッシュ
-.wrangler/
-# Cloudflareのシークレット変数ファイル (絶対にコミットしないこと)
-.dev.vars
-
-# --- Editor / IDE ---
-.vscode/*
-!.vscode/extensions.json
-!.vscode/settings.json
-.idea/
-
-# --- Extension (Vite) ---
-dist/
-.vite/
-*.local
-</file>
-
-<file path="package.json">
-{
-  "name": "sitecue",
-  "version": "1.0.0",
-  "scripts": {
-    "dev": "concurrently \"cd web && bun run dev\" \"cd extension && bun run dev\" \"cd api && bun run dev\"",
-    "db:start": "bun x supabase start",
-    "db:stop": "bun x supabase stop",
-    "stop": "bun x supabase stop"
-  },
-  "workspaces": [
-    "web",
-    "api",
-    "extension"
-  ],
-  "dependencies": {
-    "concurrently": "^9.2.1"
-  }
-}
-</file>
-
-<file path="README.md">
-# sitecue
-
-> The simplest context-aware notepad for your browser. Free your mind from the burden of note management.
-
-Are you tired of organizing folders, tagging, and managing notes across different apps? **sitecue** is a minimalist Chrome Extension designed to liberate you from note management. 
-
-Our core philosophy is simple: **The notes you need should already be exactly where you are.**
-
-Leave your distilled thoughts, to-dos, or AI-generated summaries anchored directly to specific URLs. When you revisit a page, your notes silently appear. Experience the feeling of being truly lightweight on the web.
-
-## 💡 Philosophy
-- **Zero Management:** No folders, no tags, no search required. Your notes are inherently tied to the URL itself.
-- **No Clutter:** We intentionally excluded features like web clipping or text highlighting. 
-- **Context-Aware:** Notes automatically appear and hide based on your current active tab.
-- **Markdown Support:** Simple and clean text rendering.
-
-## 🛠 Tech Stack
-This project is a monorepo containing the extension, a web dashboard, and an API.
-
-- **Extension:** React, Vite, Tailwind CSS
-- **Web Dashboard:** Next.js (App Router)
-- **API:** Cloudflare Workers, Hono
-- **Database & Auth:** Supabase (PostgreSQL with RLS)
-- **Package Manager:** Bun
-
-## 📁 Project Structure
-
-| Directory | Description |
-| :--- | :--- |
-| `extension/` | Chrome Extension built with Vite and React. |
-| `web/` | Web dashboard built with Next.js. |
-| `api/` | Backend API built with Cloudflare Workers and Hono. |
-| `supabase/` | Database migrations, RLS policies, and tests. |
-| `docs/` | Project documentation and AI-driven development context. |
-
-## 🚀 Local Development
-
-To run this project locally, you need [Bun](https://bun.sh/) and [Docker](https://www.docker.com/) (for Supabase CLI) installed.
-
-### 1. Setup Environment Variables
-Copy the example env files and fill in your keys:
-```bash
-cp extension/.env.example extension/.env.development
-cp web/.env.example web/.env.local
-cp api/.dev.vars.example api/.dev.vars
-```
-
-### 2. Start Local Database
-Start the Supabase local instance:
-```bash
-bun run db:start
-```
-
-### 3. Start Development Servers
-This command runs the extension, web, and API dev servers concurrently:
-```bash
-bun install
-bun run dev
-```
-
-### 4. Load the Extension
-1. Open Chrome and navigate to `chrome://extensions/`
-2. Enable "Developer mode"
-3. Click "Load unpacked" and select the `extension/dist` directory.
-
-## 🛡️ Security
-All user data is protected by Row Level Security (RLS) policies at the database level, ensuring users can only access their own notes.
-
-## 📄 License
-MIT License
 </file>
 
 <file path="api/worker-configuration.d.ts">
@@ -13197,6 +12175,1040 @@ declare abstract class WorkflowInstance {
 }
 </file>
 
+<file path="extension/scripts/repro_406.ts">
+import { createClient } from '@supabase/supabase-js';
+
+const SUPABASE_URL = process.env.VITE_SUPABASE_URL || 'http://127.0.0.1:54321';
+const SUPABASE_KEY = process.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_ACJWlzQHlZjBrEguHvfOxg_3BJgxAaH';
+
+console.log('Connecting to Supabase:', SUPABASE_URL);
+
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
+    auth: {
+        persistSession: false
+    }
+});
+
+async function run() {
+    // 1. Sign Up User
+    const email = `repro_${Date.now()}@example.com`;
+    const password = 'password123';
+
+    console.log(`Signing up user: ${email}`);
+    const { data: { user, session }, error: signUpError } = await supabase.auth.signUp({
+        email,
+        password
+    });
+
+    if (signUpError) {
+        console.error('Sign up failed:', signUpError);
+        return;
+    }
+
+    if (!user) {
+        console.error('No user returned');
+        return;
+    }
+
+    console.log('User signed up:', user.id);
+
+    // 2. Insert Note
+    const hostname = 'example.com';
+    const fullPath = 'example.com/foo?q=1';
+
+    console.log('Inserting note...');
+    const { error: insertError } = await supabase.from('sitecue_notes').insert({
+        user_id: user.id,
+        url_pattern: hostname,
+        content: 'Test Note',
+        scope: 'domain'
+    });
+
+    if (insertError) {
+        console.error('Insert failed:', insertError);
+        // Continue anyway to see if select works (maybe RLS prevented insert but we want to test select)
+    } else {
+        console.log('Note inserted successfully.');
+    }
+
+    // 3. Run the problematic query
+    console.log('Running query from background.ts...');
+
+    // Test 1: Normal match
+    const orQuery = `and(scope.eq.domain,url_pattern.eq.${hostname}),and(scope.eq.exact,url_pattern.eq.${fullPath})`;
+
+    const { count, error, status, statusText } = await supabase
+        .from('sitecue_notes')
+        .select('*', { count: 'exact', head: true })
+        .eq('is_resolved', false)
+        .or(orQuery);
+
+    console.log('Query Result (Match):', { count, status, statusText });
+
+    if (error) {
+        console.error('Query Error (Match):', error);
+    }
+
+    // Test 2: Comma in URL
+    const complexHostname = 'example.com';
+    const complexPath = 'example.com/foo,bar'; // Comma might break .or() parser if not handled
+    // Notes logic usually normalizes URL first, but let's see if query breaks.
+
+    const orQueryComplex = `and(scope.eq.domain,url_pattern.eq.${complexHostname}),and(scope.eq.exact,url_pattern.eq.${complexPath})`;
+    console.log('Running query with complex path:', orQueryComplex);
+
+    const { count: count2, error: error2, status: status2, statusText: statusText2 } = await supabase
+        .from('sitecue_notes')
+        .select('*', { count: 'exact', head: true })
+        .eq('is_resolved', false)
+        .or(orQueryComplex);
+
+    console.log('Query Result (Complex):', { count: count2, status: status2, statusText: statusText2 });
+    if (error2) {
+        console.error('Query Error (Complex):', error2);
+    }
+
+    // Test 4: Comma in URL with Quoting
+    // PostgREST requires values with reserved characters to be double-quoted.
+    // However, since we are inside a string, we need to escape the quotes.
+    const orQueryComplexFixed = `and(scope.eq.domain,url_pattern.eq."${complexHostname}"),and(scope.eq.exact,url_pattern.eq."${complexPath}")`;
+    console.log('Running fixed query with complex path:', orQueryComplexFixed);
+
+    const { count: count4, error: error4, status: status4, statusText: statusText4 } = await supabase
+        .from('sitecue_notes')
+        .select('*', { count: 'exact', head: true })
+        .eq('is_resolved', false)
+        .or(orQueryComplexFixed);
+
+    console.log('Query Result (Fixed):', { count: count4, status: status4, statusText: statusText4 });
+    if (error4) {
+        console.error('Query Error (Fixed):', error4);
+    }
+
+    // Test 3: No match
+    const noMatchHost = 'nomatch.com';
+    const noMatchPath = 'nomatch.com/foo';
+    const orQueryNoMatch = `and(scope.eq.domain,url_pattern.eq.${noMatchHost}),and(scope.eq.exact,url_pattern.eq.${noMatchPath})`;
+
+    const { count: count3, error: error3, status: status3, statusText: statusText3 } = await supabase
+        .from('sitecue_notes')
+        .select('*', { count: 'exact', head: true })
+        .eq('is_resolved', false)
+        .or(orQueryNoMatch);
+
+    console.log('Query Result (No Match):', { count: count3, status: status3, statusText: statusText3 });
+    if (error3) {
+        console.error('Query Error (No Match):', error3);
+    }
+}
+
+run().catch(console.error);
+</file>
+
+<file path="extension/.env.example">
+# --- 共通の変数名 ---
+
+# APIの接続先
+# 開発中: http://localhost:8787
+# 本番: https://sitecue-api.[your-subdomain].workers.dev
+VITE_API_URL=
+
+# Supabaseの接続先
+# 開発中: http://127.0.0.1:54321
+# 本番: https://[project-ref].supabase.co
+VITE_SUPABASE_URL=
+
+# Supabaseの匿名キー (Anon Key)
+VITE_SUPABASE_ANON_KEY=
+</file>
+
+<file path="extension/index.html">
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/sitecue_icon16.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>extension</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+</file>
+
+<file path="extension/vite.config.ts">
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+import { crx, defineManifest } from '@crxjs/vite-plugin'
+import manifestJson from './manifest.json'
+import tailwindcss from '@tailwindcss/vite'
+
+const manifest = defineManifest((env) => {
+  const baseManifest = { ...manifestJson } as any
+
+  if (env.command === 'build' && baseManifest.host_permissions) {
+    baseManifest.host_permissions = baseManifest.host_permissions.filter(
+      (url: string) => !url.includes('localhost') && !url.includes('127.0.0.1')
+    )
+  }
+
+  return baseManifest
+})
+
+export default defineConfig({
+  plugins: [
+    react(),
+    tailwindcss(),
+    crx({ manifest }),
+  ],
+  server: {
+    port: 5173,
+    strictPort: true,
+    hmr: {
+      port: 5173,
+    },
+    cors: true,
+  },
+})
+</file>
+
+<file path="supabase/migrations/20260129162205_remote_schema.sql">
+
+</file>
+
+<file path="supabase/migrations/20260129174731_remote_schema.sql">
+drop extension if exists "pg_net";
+
+
+  create table "public"."sitecue_notes" (
+    "id" uuid not null default gen_random_uuid(),
+    "user_id" uuid not null,
+    "url_pattern" text not null,
+    "content" text not null,
+    "created_at" timestamp with time zone not null default timezone('utc'::text, now()),
+    "updated_at" timestamp with time zone not null default timezone('utc'::text, now())
+      );
+
+
+alter table "public"."sitecue_notes" enable row level security;
+
+
+  create table "public"."todo01_profiles" (
+    "id" uuid not null,
+    "display_name" text,
+    "created_at" timestamp with time zone not null default timezone('utc'::text, now()),
+    "updated_at" timestamp with time zone not null default timezone('utc'::text, now())
+      );
+
+
+alter table "public"."todo01_profiles" enable row level security;
+
+
+  create table "public"."todo01_tasks" (
+    "id" uuid not null default gen_random_uuid(),
+    "user_id" uuid not null,
+    "title" text not null,
+    "is_complete" boolean default false,
+    "created_at" timestamp with time zone not null default timezone('utc'::text, now())
+      );
+
+
+alter table "public"."todo01_tasks" enable row level security;
+
+CREATE UNIQUE INDEX sitecue_notes_pkey ON public.sitecue_notes USING btree (id);
+
+CREATE INDEX sitecue_notes_url_idx ON public.sitecue_notes USING btree (url_pattern);
+
+CREATE INDEX sitecue_notes_user_idx ON public.sitecue_notes USING btree (user_id);
+
+CREATE UNIQUE INDEX todo01_profiles_pkey ON public.todo01_profiles USING btree (id);
+
+CREATE UNIQUE INDEX todo01_tasks_pkey ON public.todo01_tasks USING btree (id);
+
+alter table "public"."sitecue_notes" add constraint "sitecue_notes_pkey" PRIMARY KEY using index "sitecue_notes_pkey";
+
+alter table "public"."todo01_profiles" add constraint "todo01_profiles_pkey" PRIMARY KEY using index "todo01_profiles_pkey";
+
+alter table "public"."todo01_tasks" add constraint "todo01_tasks_pkey" PRIMARY KEY using index "todo01_tasks_pkey";
+
+alter table "public"."sitecue_notes" add constraint "sitecue_notes_user_id_fkey" FOREIGN KEY (user_id) REFERENCES auth.users(id) not valid;
+
+alter table "public"."sitecue_notes" validate constraint "sitecue_notes_user_id_fkey";
+
+alter table "public"."todo01_profiles" add constraint "todo01_profiles_id_fkey" FOREIGN KEY (id) REFERENCES auth.users(id) ON DELETE CASCADE not valid;
+
+alter table "public"."todo01_profiles" validate constraint "todo01_profiles_id_fkey";
+
+alter table "public"."todo01_tasks" add constraint "todo01_tasks_user_id_fkey" FOREIGN KEY (user_id) REFERENCES public.todo01_profiles(id) ON DELETE CASCADE not valid;
+
+alter table "public"."todo01_tasks" validate constraint "todo01_tasks_user_id_fkey";
+
+set check_function_bodies = off;
+
+CREATE OR REPLACE FUNCTION public.handle_new_user_todo01()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+AS $function$
+begin
+  insert into public.todo01_profiles (id, display_name)
+  values (new.id, new.raw_user_meta_data->>'full_name');
+  return new;
+end;
+$function$
+;
+
+grant delete on table "public"."sitecue_notes" to "anon";
+
+grant insert on table "public"."sitecue_notes" to "anon";
+
+grant references on table "public"."sitecue_notes" to "anon";
+
+grant select on table "public"."sitecue_notes" to "anon";
+
+grant trigger on table "public"."sitecue_notes" to "anon";
+
+grant truncate on table "public"."sitecue_notes" to "anon";
+
+grant update on table "public"."sitecue_notes" to "anon";
+
+grant delete on table "public"."sitecue_notes" to "authenticated";
+
+grant insert on table "public"."sitecue_notes" to "authenticated";
+
+grant references on table "public"."sitecue_notes" to "authenticated";
+
+grant select on table "public"."sitecue_notes" to "authenticated";
+
+grant trigger on table "public"."sitecue_notes" to "authenticated";
+
+grant truncate on table "public"."sitecue_notes" to "authenticated";
+
+grant update on table "public"."sitecue_notes" to "authenticated";
+
+grant delete on table "public"."sitecue_notes" to "service_role";
+
+grant insert on table "public"."sitecue_notes" to "service_role";
+
+grant references on table "public"."sitecue_notes" to "service_role";
+
+grant select on table "public"."sitecue_notes" to "service_role";
+
+grant trigger on table "public"."sitecue_notes" to "service_role";
+
+grant truncate on table "public"."sitecue_notes" to "service_role";
+
+grant update on table "public"."sitecue_notes" to "service_role";
+
+grant delete on table "public"."todo01_profiles" to "anon";
+
+grant insert on table "public"."todo01_profiles" to "anon";
+
+grant references on table "public"."todo01_profiles" to "anon";
+
+grant select on table "public"."todo01_profiles" to "anon";
+
+grant trigger on table "public"."todo01_profiles" to "anon";
+
+grant truncate on table "public"."todo01_profiles" to "anon";
+
+grant update on table "public"."todo01_profiles" to "anon";
+
+grant delete on table "public"."todo01_profiles" to "authenticated";
+
+grant insert on table "public"."todo01_profiles" to "authenticated";
+
+grant references on table "public"."todo01_profiles" to "authenticated";
+
+grant select on table "public"."todo01_profiles" to "authenticated";
+
+grant trigger on table "public"."todo01_profiles" to "authenticated";
+
+grant truncate on table "public"."todo01_profiles" to "authenticated";
+
+grant update on table "public"."todo01_profiles" to "authenticated";
+
+grant delete on table "public"."todo01_profiles" to "service_role";
+
+grant insert on table "public"."todo01_profiles" to "service_role";
+
+grant references on table "public"."todo01_profiles" to "service_role";
+
+grant select on table "public"."todo01_profiles" to "service_role";
+
+grant trigger on table "public"."todo01_profiles" to "service_role";
+
+grant truncate on table "public"."todo01_profiles" to "service_role";
+
+grant update on table "public"."todo01_profiles" to "service_role";
+
+grant delete on table "public"."todo01_tasks" to "anon";
+
+grant insert on table "public"."todo01_tasks" to "anon";
+
+grant references on table "public"."todo01_tasks" to "anon";
+
+grant select on table "public"."todo01_tasks" to "anon";
+
+grant trigger on table "public"."todo01_tasks" to "anon";
+
+grant truncate on table "public"."todo01_tasks" to "anon";
+
+grant update on table "public"."todo01_tasks" to "anon";
+
+grant delete on table "public"."todo01_tasks" to "authenticated";
+
+grant insert on table "public"."todo01_tasks" to "authenticated";
+
+grant references on table "public"."todo01_tasks" to "authenticated";
+
+grant select on table "public"."todo01_tasks" to "authenticated";
+
+grant trigger on table "public"."todo01_tasks" to "authenticated";
+
+grant truncate on table "public"."todo01_tasks" to "authenticated";
+
+grant update on table "public"."todo01_tasks" to "authenticated";
+
+grant delete on table "public"."todo01_tasks" to "service_role";
+
+grant insert on table "public"."todo01_tasks" to "service_role";
+
+grant references on table "public"."todo01_tasks" to "service_role";
+
+grant select on table "public"."todo01_tasks" to "service_role";
+
+grant trigger on table "public"."todo01_tasks" to "service_role";
+
+grant truncate on table "public"."todo01_tasks" to "service_role";
+
+grant update on table "public"."todo01_tasks" to "service_role";
+
+
+  create policy "Users can delete their own notes"
+  on "public"."sitecue_notes"
+  as permissive
+  for delete
+  to public
+using ((auth.uid() = user_id));
+
+
+
+  create policy "Users can insert their own notes"
+  on "public"."sitecue_notes"
+  as permissive
+  for insert
+  to public
+with check ((auth.uid() = user_id));
+
+
+
+  create policy "Users can update their own notes"
+  on "public"."sitecue_notes"
+  as permissive
+  for update
+  to public
+using ((auth.uid() = user_id));
+
+
+
+  create policy "Users can view their own notes"
+  on "public"."sitecue_notes"
+  as permissive
+  for select
+  to public
+using ((auth.uid() = user_id));
+
+
+
+  create policy "Users can insert own profile"
+  on "public"."todo01_profiles"
+  as permissive
+  for insert
+  to public
+with check ((auth.uid() = id));
+
+
+
+  create policy "Users can update own profile"
+  on "public"."todo01_profiles"
+  as permissive
+  for update
+  to public
+using ((auth.uid() = id));
+
+
+
+  create policy "Users can view own profile"
+  on "public"."todo01_profiles"
+  as permissive
+  for select
+  to public
+using ((auth.uid() = id));
+
+
+
+  create policy "Users can perform all operations on own tasks"
+  on "public"."todo01_tasks"
+  as permissive
+  for all
+  to public
+using ((auth.uid() = user_id));
+</file>
+
+<file path="supabase/migrations/20260129193252_add_update_policy.sql">
+create policy "Enable update for users based on user_id"
+  on "public"."sitecue_notes"
+  as permissive
+  for update
+  to authenticated
+using ((auth.uid() = user_id))
+with check ((auth.uid() = user_id));
+</file>
+
+<file path="supabase/migrations/20260203100000_add_scope_to_notes.sql">
+-- Add scope column to sitecue_notes
+ALTER TABLE sitecue_notes ADD COLUMN scope text NOT NULL DEFAULT 'domain';
+
+-- Add check constraint to ensure only 'domain' or 'exact' values are allowed
+ALTER TABLE sitecue_notes ADD CONSTRAINT sitecue_notes_scope_check CHECK (scope IN ('domain', 'exact'));
+</file>
+
+<file path="supabase/migrations/20260203110000_create_domain_settings.sql">
+create table sitecue_domain_settings (
+  id uuid default gen_random_uuid() primary key,
+  user_id uuid references auth.users(id) not null,
+  domain text not null,
+  label text,
+  color text,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null,
+  updated_at timestamp with time zone default timezone('utc'::text, now()) not null,
+  unique(user_id, domain)
+);
+
+alter table sitecue_domain_settings enable row level security;
+
+create policy "Users can view their own domain settings"
+  on sitecue_domain_settings for select
+  using (auth.uid() = user_id);
+
+create policy "Users can insert their own domain settings"
+  on sitecue_domain_settings for insert
+  with check (auth.uid() = user_id);
+
+create policy "Users can update their own domain settings"
+  on sitecue_domain_settings for update
+  using (auth.uid() = user_id);
+
+create policy "Users can delete their own domain settings"
+  on sitecue_domain_settings for delete
+  using (auth.uid() = user_id);
+</file>
+
+<file path="supabase/migrations/20260203120000_add_note_type.sql">
+-- Add note_type column to sitecue_notes table
+alter table "public"."sitecue_notes" 
+add column "note_type" text not null default 'info',
+add constraint "sitecue_notes_note_type_check" check (note_type in ('info', 'alert', 'idea'));
+</file>
+
+<file path="supabase/migrations/20260204120000_add_is_resolved.sql">
+-- Add is_resolved column to sitecue_notes table
+ALTER TABLE sitecue_notes
+ADD COLUMN is_resolved boolean NOT NULL DEFAULT false;
+</file>
+
+<file path="supabase/migrations/20260206101100_create_sitecue_links.sql">
+create table "public"."sitecue_links" (
+    "id" uuid not null default gen_random_uuid(),
+    "user_id" uuid not null default auth.uid(),
+    "domain" text not null,
+    "target_url" text not null,
+    "label" text not null,
+    "type" text not null,
+    "created_at" timestamp with time zone not null default now()
+);
+
+alter table "public"."sitecue_links" enable row level security;
+
+CREATE UNIQUE INDEX sitecue_links_pkey ON public.sitecue_links USING btree (id);
+
+alter table "public"."sitecue_links" add constraint "sitecue_links_pkey" PRIMARY KEY using index "sitecue_links_pkey";
+
+alter table "public"."sitecue_links" add constraint "sitecue_links_user_id_fkey" FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE;
+
+alter table "public"."sitecue_links" add constraint "sitecue_links_type_check" CHECK (type = ANY (ARRAY['related'::text, 'env'::text]));
+
+create index "sitecue_links_domain_idx" on "public"."sitecue_links" using btree (domain);
+
+create index "sitecue_links_target_url_idx" on "public"."sitecue_links" using btree (target_url);
+
+create policy "Users can perform all actions on their own links"
+on "public"."sitecue_links"
+as permissive
+for all
+to authenticated
+using ((auth.uid() = user_id))
+with check ((auth.uid() = user_id));
+</file>
+
+<file path="supabase/migrations/20260209163000_add_is_pinned_to_notes.sql">
+alter table "public"."sitecue_notes" add column "is_pinned" boolean not null default false;
+</file>
+
+<file path="supabase/migrations/20260209174000_add_is_favorite_to_notes.sql">
+alter table "public"."sitecue_notes" add column "is_favorite" boolean not null default false;
+</file>
+
+<file path="supabase/migrations/20260218100000_create_profiles_and_limits.sql">
+-- Create sitecue_profiles table
+create table if not exists public.sitecue_profiles (
+  id uuid references auth.users on delete cascade not null primary key,
+  plan text not null default 'free' check (plan in ('free', 'pro')),
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+-- Enable RLS
+alter table public.sitecue_profiles enable row level security;
+
+-- Create policies
+create policy "Users can view their own profile."
+  on public.sitecue_profiles for select
+  using ( auth.uid() = id );
+
+create policy "Users can update their own profile."
+  on public.sitecue_profiles for update
+  using ( auth.uid() = id );
+
+-- Function to handle new user creation
+create or replace function public.handle_new_user()
+returns trigger as $$
+begin
+  insert into public.sitecue_profiles (id, plan)
+  values (new.id, 'free');
+  return new;
+end;
+$$ language plpgsql security definer;
+
+-- Trigger for new user creation
+create or replace trigger on_auth_user_created
+  after insert on auth.users
+  for each row execute procedure public.handle_new_user();
+
+-- Function to check note limit
+create or replace function public.check_note_limit()
+returns trigger as $$
+declare
+  user_plan text;
+  note_count int;
+begin
+  -- Get user plan
+  select plan into user_plan
+  from public.sitecue_profiles
+  where id = auth.uid();
+
+  -- If plan is free, check count
+  if user_plan = 'free' then
+    select count(*) into note_count
+    from public.sitecue_notes
+    where user_id = auth.uid();
+
+    if note_count >= 200 then
+      raise exception 'Free plan limit reached (200 notes). Please upgrade to Pro.';
+    end if;
+  end if;
+
+  return new;
+end;
+$$ language plpgsql security definer;
+
+-- Trigger for note limit (before insert)
+create or replace trigger on_note_created_check_limit
+  before insert on public.sitecue_notes
+  for each row execute procedure public.check_note_limit();
+
+-- Backfill existing users
+insert into public.sitecue_profiles (id, plan)
+select id, 'free'
+from auth.users
+where id not in (select id from public.sitecue_profiles);
+</file>
+
+<file path="supabase/migrations/20260219203527_add_cascade_delete_notes.sql">
+-- Migration to add ON DELETE CASCADE to sitecue_notes.user_id foreign key
+
+-- Drop the existing constraint (assuming default name sitecue_notes_user_id_fkey)
+ALTER TABLE sitecue_notes
+DROP CONSTRAINT IF EXISTS sitecue_notes_user_id_fkey;
+
+-- Re-add the constraint with ON DELETE CASCADE
+ALTER TABLE sitecue_notes
+ADD CONSTRAINT sitecue_notes_user_id_fkey
+FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE;
+</file>
+
+<file path="supabase/snippets/Untitled query 254.sql">
+DELETE FROM supabase_migrations.schema_migrations
+WHERE version LIKE '2026%';
+</file>
+
+<file path="supabase/snippets/Untitled query 463.sql">
+SELECT
+    conname AS constraint_name,
+    pg_get_constraintdef(oid) AS constraint_definition
+FROM pg_constraint
+WHERE conrelid = 'public.sitecue_notes'::regclass;
+</file>
+
+<file path="supabase/tests/rls_test.sql">
+BEGIN;
+
+-- Enable pgTAP if not already enabled
+CREATE EXTENSION IF NOT EXISTS pgtap;
+
+SELECT plan(12); -- Update the plan count as we add tests
+
+-- 1. Create test users (helpers)
+-- We need to mock auth.users.
+-- Since we cannot easily insert into auth.users in standard migrations without raw sql or specific setup,
+-- we'll rely on `supautils` or just mocking the `auth.uid()` function if possible,
+-- OR better, we insert into `auth.users` if we have permissions.
+-- In Supabase local testing, we usually have service_role privileges.
+
+-- Create two test users
+INSERT INTO auth.users (id, email) VALUES
+  ('11111111-1111-1111-1111-111111111111', 'user1@example.com'),
+  ('22222222-2222-2222-2222-222222222222', 'user2@example.com');
+
+-- 2. Create test data (as service_role to ensure it exists)
+-- Note 1 created by User 1
+INSERT INTO public.sitecue_notes (user_id, url_pattern, content, scope) VALUES
+  ('11111111-1111-1111-1111-111111111111', 'https://example.com/*', 'User 1 Note', 'domain');
+
+-- Note 2 created by User 2
+INSERT INTO public.sitecue_notes (user_id, url_pattern, content, scope) VALUES
+  ('22222222-2222-2222-2222-222222222222', 'https://example.org/*', 'User 2 Note', 'domain');
+
+
+-- ============================================================
+-- Test Case 1: Anonymous User (No Auth)
+-- ============================================================
+
+-- Switch to anon role
+SET ROLE anon;
+
+-- Should not see any notes
+SELECT is(count(*), 0::bigint, 'Anon user should see 0 notes') FROM public.sitecue_notes;
+
+-- Should not be able to insert
+PREPARE anon_insert AS INSERT INTO public.sitecue_notes (user_id, url_pattern, content) VALUES ('11111111-1111-1111-1111-111111111111', 'https://hacker.com', 'Hacker Note');
+SELECT throws_ok('anon_insert', '42501', NULL, 'Anon user cannot insert notes');
+
+
+-- ============================================================
+-- Test Case 2: Authenticated User 1
+-- ============================================================
+
+-- Authenticate as User 1
+SET ROLE authenticated;
+SET request.jwt.claim.sub = '11111111-1111-1111-1111-111111111111';
+SET request.jwt.claim.role = 'authenticated';
+
+-- Should see only User 1's notes
+SELECT is(count(*), 1::bigint, 'User 1 should see exactly 1 note') FROM public.sitecue_notes;
+SELECT results_eq(
+    'SELECT content FROM public.sitecue_notes',
+    ARRAY['User 1 Note'],
+    'User 1 should see their own note content'
+);
+
+-- Should be able to insert own note
+INSERT INTO public.sitecue_notes (user_id, url_pattern, content, scope)
+VALUES ('11111111-1111-1111-1111-111111111111', 'https://test.com', 'User 1 New Note', 'domain');
+
+SELECT is(count(*), 2::bigint, 'User 1 should have 2 notes now') FROM public.sitecue_notes;
+
+-- Should NOT be able to insert note for User 2
+PREPARE user1_insert_for_user2 AS INSERT INTO public.sitecue_notes (user_id, url_pattern, content) VALUES ('22222222-2222-2222-2222-222222222222', 'https://malicious.com', 'Malicious Note');
+SELECT throws_ok('user1_insert_for_user2', '42501', NULL, 'User 1 cannot insert note for User 2');
+
+-- Should be able to update own note
+UPDATE public.sitecue_notes SET content = 'User 1 Updated Note' WHERE content = 'User 1 Note';
+SELECT results_eq(
+    'SELECT content FROM public.sitecue_notes WHERE content = ''User 1 Updated Note''',
+    ARRAY['User 1 Updated Note'],
+    'User 1 can update their own note'
+);
+
+-- Should be able to delete own note
+DELETE FROM public.sitecue_notes WHERE content = 'User 1 Updated Note';
+SELECT is(count(*), 1::bigint, 'User 1 should have 1 note after delete') FROM public.sitecue_notes;
+
+
+-- ============================================================
+-- Test Case 3: Authenticated User 2
+-- ============================================================
+
+-- Authenticate as User 2
+SET request.jwt.claim.sub = '22222222-2222-2222-2222-222222222222';
+
+-- Should see only User 2's notes
+SELECT is(count(*), 1::bigint, 'User 2 should see exactly 1 note') FROM public.sitecue_notes;
+SELECT results_eq(
+    'SELECT content FROM public.sitecue_notes',
+    ARRAY['User 2 Note'],
+    'User 2 should see their own note content'
+);
+
+-- Should NOT see User 1's notes (User 1 has 1 note left: 'User 1 New Note')
+SELECT is_empty(
+    'SELECT * FROM public.sitecue_notes WHERE user_id = ''11111111-1111-1111-1111-111111111111''',
+    'User 2 should not see User 1 notes'
+);
+
+-- Attempt update on User 1's note (should affect 0 rows or throw)
+-- In RLS, typically updates purely filters out rows, so it updates 0 rows.
+-- Unless utilizing `WITH CHECK`, but here we are selecting rows to update.
+PREPARE user2_update_user1 AS UPDATE public.sitecue_notes SET content = 'Hacked' WHERE user_id = '11111111-1111-1111-1111-111111111111';
+-- For standard RLS update, it just doesn't find the row.
+-- Let's check if rows affected is 0.
+-- But standard pgTAP doesn't easily check affected rows count without diagnostics.
+-- We can check if content changed.
+EXECUTE user2_update_user1;
+
+-- Switch back to Service Role to verify integrity
+SET ROLE service_role;
+SELECT results_eq(
+    'SELECT content FROM public.sitecue_notes WHERE user_id = ''11111111-1111-1111-1111-111111111111''',
+    ARRAY['User 1 New Note'],
+    'User 1 note should remain unchanged after User 2 update attempt'
+);
+
+
+-- ============================================================
+-- Clean up
+-- ============================================================
+SELECT * FROM finish();
+ROLLBACK;
+</file>
+
+<file path="supabase/.gitignore">
+# Supabase
+.branches
+.temp
+
+# dotenvx
+.env.keys
+.env.local
+.env.*.local
+</file>
+
+<file path="web/.env.example">
+# --- Supabase設定 (Auth & DB) ---
+# 開発中: http://127.0.0.1:54321
+# 本番: https://[project-ref].supabase.co
+NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321
+
+# Supabaseの匿名キー (Anon Key)
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+
+# --- サイトのURL (Authのリダイレクト用) ---
+# 開発中: http://localhost:3000
+# 本番: https://your-production-site.com
+NEXT_PUBLIC_SITE_URL=http://localhost:3000
+
+# --- APIサーバー (Cloudflare Workers) ---
+# ※もしNext.jsからもメモを表示/編集する場合のみ必要
+# NEXT_PUBLIC_API_URL=http://localhost:8787
+</file>
+
+<file path="web/package.json">
+{
+  "name": "web",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "pages:build": "bun x @cloudflare/next-on-pages",
+    "start": "next start"
+  },
+  "dependencies": {
+    "@supabase/ssr": "^0.8.0",
+    "@supabase/supabase-js": "^2.93.1",
+    "next": "^16.1.6",
+    "react": "19.2.3",
+    "react-dom": "19.2.3"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.3.13",
+    "@cloudflare/next-on-pages": "^1.13.16",
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "tailwindcss": "^4",
+    "typescript": "^5"
+  },
+  "ignoreScripts": [
+    "sharp",
+    "unrs-resolver"
+  ],
+  "trustedDependencies": [
+    "sharp",
+    "unrs-resolver"
+  ]
+}
+</file>
+
+<file path=".gitignore">
+# --- Global / General ---
+node_modules
+
+# Macのシステムファイル
+.DS_Store
+*.pem
+
+# --- Logs ---
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+bun.debug.log*
+
+# --- Environment Variables (重要) ---
+.env
+.env*.local
+.env.local
+.env.*
+# example ファイルだけは例外として許可する
+!.env.example
+!.env*.example
+
+# --- Web (Next.js) ---
+.next/
+out/
+build/
+.vercel
+
+# TypeScript definition
+next-env.d.ts
+*.tsbuildinfo
+
+# --- API (Hono / Cloudflare Workers) ---
+# Cloudflareのローカル開発用キャッシュ
+.wrangler/
+# Cloudflareのシークレット変数ファイル (絶対にコミットしないこと)
+.dev.vars
+
+# --- Editor / IDE ---
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/
+
+# --- Extension (Vite) ---
+dist/
+.vite/
+*.local
+</file>
+
+<file path="package.json">
+{
+  "name": "sitecue",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "concurrently \"cd web && bun run dev\" \"cd extension && bun run dev\" \"cd api && bun run dev\"",
+    "db:start": "bun x supabase start",
+    "db:stop": "bun x supabase stop",
+    "stop": "bun x supabase stop"
+  },
+  "workspaces": [
+    "web",
+    "api",
+    "extension"
+  ],
+  "dependencies": {
+    "concurrently": "^9.2.1"
+  }
+}
+</file>
+
+<file path="README.md">
+# sitecue
+
+> The simplest context-aware notepad for your browser. Free your mind from the burden of note management.
+
+Are you tired of organizing folders, tagging, and managing notes across different apps? **sitecue** is a minimalist Chrome Extension designed to liberate you from note management. 
+
+Our core philosophy is simple: **The notes you need should already be exactly where you are.**
+
+Leave your distilled thoughts, to-dos, or AI-generated summaries anchored directly to specific URLs. When you revisit a page, your notes silently appear. Experience the feeling of being truly lightweight on the web.
+
+## 💡 Philosophy
+- **Zero Management:** No folders, no tags, no search required. Your notes are inherently tied to the URL itself.
+- **No Clutter:** We intentionally excluded features like web clipping or text highlighting. 
+- **Context-Aware:** Notes automatically appear and hide based on your current active tab.
+- **Markdown Support:** Simple and clean text rendering.
+
+## 🛠 Tech Stack
+This project is a monorepo containing the extension, a web dashboard, and an API.
+
+- **Extension:** React, Vite, Tailwind CSS
+- **Web Dashboard:** Next.js (App Router)
+- **API:** Cloudflare Workers, Hono
+- **Database & Auth:** Supabase (PostgreSQL with RLS)
+- **Package Manager:** Bun
+
+## 📁 Project Structure
+
+| Directory | Description |
+| :--- | :--- |
+| `extension/` | Chrome Extension built with Vite and React. |
+| `web/` | Web dashboard built with Next.js. |
+| `api/` | Backend API built with Cloudflare Workers and Hono. |
+| `supabase/` | Database migrations, RLS policies, and tests. |
+| `docs/` | Project documentation and AI-driven development context. |
+
+## 🚀 Local Development
+
+To run this project locally, you need [Bun](https://bun.sh/) and [Docker](https://www.docker.com/) (for Supabase CLI) installed.
+
+### 1. Setup Environment Variables
+Copy the example env files and fill in your keys:
+```bash
+cp extension/.env.example extension/.env.development
+cp web/.env.example web/.env.local
+cp api/.dev.vars.example api/.dev.vars
+```
+
+### 2. Start Local Database
+Start the Supabase local instance:
+```bash
+bun run db:start
+```
+
+### 3. Start Development Servers
+This command runs the extension, web, and API dev servers concurrently:
+```bash
+bun install
+bun run dev
+```
+
+### 4. Load the Extension
+1. Open Chrome and navigate to `chrome://extensions/`
+2. Enable "Developer mode"
+3. Click "Load unpacked" and select the `extension/dist` directory.
+
+## 🛡️ Security
+All user data is protected by Row Level Security (RLS) policies at the database level, ensuring users can only access their own notes.
+
+## 📄 License
+MIT License
+</file>
+
 <file path="extension/src/hooks/useQuickLinks.ts">
 import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '../supabaseClient';
@@ -14792,6 +14804,41 @@ export const getScopeUrls = (currentUrl: string): { domain: string, exact: strin
 }
 </file>
 
+<file path="extension/manifest.json">
+{
+  "manifest_version": 3,
+  "name": "sitecue",
+  "version": "1.0.2",
+  "description": "For those tired of cluttered highlighters. The simplest context-aware extension to leave only your core thoughts on any web page.",
+  "action": {
+    "default_title": "Open sitecue"
+  },
+  "icons": {
+    "16": "sitecue_icon16.png",
+    "32": "sitecue_icon32.png",
+    "48": "sitecue_icon48.png",
+    "128": "sitecue_icon128.png"
+  },
+  "background": {
+    "service_worker": "src/background.ts",
+    "type": "module"
+  },
+  "side_panel": {
+    "default_path": "sidepanel.html"
+  },
+  "permissions": ["sidePanel", "activeTab", "storage", "tabs", "identity"],
+  "host_permissions": ["http://localhost:8787/*", "http://127.0.0.1:54321/*"],
+  "commands": {
+    "_execute_action": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+E",
+        "mac": "Command+Shift+E"
+      }
+    }
+  }
+}
+</file>
+
 <file path="types/supabase.ts">
 export type Json =
     | string
@@ -15175,45 +15222,6 @@ export default function Header({
 }
 </file>
 
-<file path="extension/manifest.json">
-{
-  "manifest_version": 3,
-  "name": "sitecue",
-  "version": "1.0.1",
-  "description": "For those tired of cluttered highlighters. The simplest context-aware extension to leave only your core thoughts on any web page.",
-  "action": {
-    "default_title": "Open sitecue"
-  },
-  "icons": {
-    "16": "sitecue_icon16.png",
-    "32": "sitecue_icon32.png",
-    "48": "sitecue_icon48.png",
-    "128": "sitecue_icon128.png"
-  },
-  "background": {
-    "service_worker": "src/background.ts",
-    "type": "module"
-  },
-  "side_panel": {
-    "default_path": "sidepanel.html"
-  },
-  "permissions": ["sidePanel", "activeTab", "storage", "tabs", "identity"],
-  "host_permissions": [
-    "https://sitecue-api.aledside.workers.dev/*",
-    "http://localhost:8787/*",
-    "http://127.0.0.1:54321/*"
-  ],
-  "commands": {
-    "_execute_action": {
-      "suggested_key": {
-        "default": "Ctrl+Shift+E",
-        "mac": "Command+Shift+E"
-      }
-    }
-  }
-}
-</file>
-
 <file path="docs/CONTEXT.md">
 # Project: SiteCue
 
@@ -15243,6 +15251,10 @@ Chrome拡張機能として動作し、現在開いているURLやドメイン�
     - `lucide-react`: アイコン表示に使用。
   - **Communication Pattern**: Supabase JS Client (`@supabase/supabase-js`) を使用して **DBと直接通信する**。
   - ⛔ **Prohibited**: `extension/` から `api/` (Cloudflare Workers) を経由してCRUDを行ってはならない。`axios` や `fetch` でバックエンドを叩くのは禁止。
+  - 🛡️ **Permissions Strategy (権限戦略 - 引き算の美学)**:
+    - 拡張機能の `manifest.json` における権限要求は極限まで最小化し、ユーザーのインストール時に不要な警戒感（「〇〇上にある自分のデータの読み取りと変更」等）を与えないことを徹底する。
+    - 外部API（Supabase等）との通信は、原則として `host_permissions` を使用せず、サーバー側の **CORS設定** で拡張機能IDを許可することで通信を行うこと。
+    - ローカル開発用のURL（`http://localhost/*`, `http://127.0.0.1/*`）は開発体験（DX）維持のためソースコードの `manifest.json` の `host_permissions` に残し、Viteのビルドプロセス（`vite.config.ts`）にて本番ビルド時（`command === 'build'`）にのみ自動除外する仕組みを維持すること。
 - **Web**: Next.js (App Router)
   - Path: `web/`
 - **Database**: Supabase (PostgreSQL)
