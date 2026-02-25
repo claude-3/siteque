@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "sitecue",
-  "version": "1.0.2",
-  "description": "For those tired of cluttered highlighters. The simplest context-aware extension to leave only your core thoughts on any web page.",
+  "version": "1.0.3",
+  "description": "Leave notes linked to websites in the side panel. A simple way to keep the notes you need exactly where you need them.",
   "action": {
     "default_title": "Open sitecue"
   },
@@ -30,4 +30,3 @@
     }
   }
 }
-
