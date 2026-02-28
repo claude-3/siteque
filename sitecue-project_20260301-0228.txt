@@ -287,6 +287,12 @@ app.put('/notes', async (c) => {
 export default app
 </file>
 
+<file path="api/.dev.vars.example">
+# ローカル開発用の設定 (Supabase Local)
+SUPABASE_URL=http://127.0.0.1:54321
+SUPABASE_ANON_KEY=your_local_anon_key_here
+</file>
+
 <file path="api/.gitignore">
 # prod
 dist/
@@ -439,6 +445,23 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
         <SidePanel />
     </React.StrictMode>,
 )
+</file>
+
+<file path="extension/.env.example">
+# --- 共通の変数名 ---
+
+# APIの接続先
+# 開発中: http://localhost:8787
+# 本番: https://sitecue-api.[your-subdomain].workers.dev
+VITE_API_URL=
+
+# Supabaseの接続先
+# 開発中: http://127.0.0.1:54321
+# 本番: https://[project-ref].supabase.co
+VITE_SUPABASE_URL=
+
+# Supabaseの匿名キー (Anon Key)
+VITE_SUPABASE_ANON_KEY=
 </file>
 
 <file path="extension/.gitignore">
@@ -1355,6 +1378,25 @@ export async function createClient() {
 }
 </file>
 
+<file path="web/.env.example">
+# --- Supabase設定 (Auth & DB) ---
+# 開発中: http://127.0.0.1:54321
+# 本番: https://[project-ref].supabase.co
+NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321
+
+# Supabaseの匿名キー (Anon Key)
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+
+# --- サイトのURL (Authのリダイレクト用) ---
+# 開発中: http://localhost:3000
+# 本番: https://your-production-site.com
+NEXT_PUBLIC_SITE_URL=http://localhost:3000
+
+# --- APIサーバー (Cloudflare Workers) ---
+# ※もしNext.jsからもメモを表示/編集する場合のみ必要
+# NEXT_PUBLIC_API_URL=http://localhost:8787
+</file>
+
 <file path="web/biome.json">
 {
 	"$schema": "https://biomejs.dev/schemas/2.3.13/schema.json",
@@ -1519,6 +1561,58 @@ compatibility_flags = ["nodejs_compat"]
 pages_build_output_dir = ".vercel/output/static"
 </file>
 
+<file path=".gitignore">
+# --- Global / General ---
+node_modules
+
+# Macのシステムファイル
+.DS_Store
+*.pem
+
+# --- Logs ---
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+bun.debug.log*
+
+# --- Environment Variables (重要) ---
+.env
+.env*.local
+.env.local
+.env.*
+# example ファイルだけは例外として許可する
+!.env.example
+!.env*.example
+
+# --- Web (Next.js) ---
+.next/
+out/
+build/
+.vercel
+
+# TypeScript definition
+next-env.d.ts
+*.tsbuildinfo
+
+# --- API (Hono / Cloudflare Workers) ---
+# Cloudflareのローカル開発用キャッシュ
+.wrangler/
+# Cloudflareのシークレット変数ファイル (絶対にコミットしないこと)
+.dev.vars
+
+# --- Editor / IDE ---
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/
+
+# --- Extension (Vite) ---
+dist/
+.vite/
+*.local
+</file>
+
 <file path="schema.sql">
 -- Project: SiteCue
 -- Description: Chrome Extension context-aware notes
@@ -1561,12 +1655,6 @@ using (auth.uid() = user_id);
 -- 4. Indexes
 create index if not exists sitecue_notes_url_idx on sitecue_notes (url_pattern);
 create index if not exists sitecue_notes_user_idx on sitecue_notes (user_id);
-</file>
-
-<file path="api/.dev.vars.example">
-# ローカル開発用の設定 (Supabase Local)
-SUPABASE_URL=http://127.0.0.1:54321
-SUPABASE_ANON_KEY=your_local_anon_key_here
 </file>
 
 <file path="api/worker-configuration.d.ts">
@@ -12660,23 +12748,6 @@ export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
 });
 </file>
 
-<file path="extension/.env.example">
-# --- 共通の変数名 ---
-
-# APIの接続先
-# 開発中: http://localhost:8787
-# 本番: https://sitecue-api.[your-subdomain].workers.dev
-VITE_API_URL=
-
-# Supabaseの接続先
-# 開発中: http://127.0.0.1:54321
-# 本番: https://[project-ref].supabase.co
-VITE_SUPABASE_URL=
-
-# Supabaseの匿名キー (Anon Key)
-VITE_SUPABASE_ANON_KEY=
-</file>
-
 <file path="extension/index.html">
 <!doctype html>
 <html lang="en">
@@ -13460,25 +13531,6 @@ s3_access_key = "env(S3_ACCESS_KEY)"
 s3_secret_key = "env(S3_SECRET_KEY)"
 </file>
 
-<file path="web/.env.example">
-# --- Supabase設定 (Auth & DB) ---
-# 開発中: http://127.0.0.1:54321
-# 本番: https://[project-ref].supabase.co
-NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321
-
-# Supabaseの匿名キー (Anon Key)
-NEXT_PUBLIC_SUPABASE_ANON_KEY=
-
-# --- サイトのURL (Authのリダイレクト用) ---
-# 開発中: http://localhost:3000
-# 本番: https://your-production-site.com
-NEXT_PUBLIC_SITE_URL=http://localhost:3000
-
-# --- APIサーバー (Cloudflare Workers) ---
-# ※もしNext.jsからもメモを表示/編集する場合のみ必要
-# NEXT_PUBLIC_API_URL=http://localhost:8787
-</file>
-
 <file path="web/package.json">
 {
   "name": "web",
@@ -13516,58 +13568,6 @@ NEXT_PUBLIC_SITE_URL=http://localhost:3000
     "unrs-resolver"
   ]
 }
-</file>
-
-<file path=".gitignore">
-# --- Global / General ---
-node_modules
-
-# Macのシステムファイル
-.DS_Store
-*.pem
-
-# --- Logs ---
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-.pnpm-debug.log*
-bun.debug.log*
-
-# --- Environment Variables (重要) ---
-.env
-.env*.local
-.env.local
-.env.*
-# example ファイルだけは例外として許可する
-!.env.example
-!.env*.example
-
-# --- Web (Next.js) ---
-.next/
-out/
-build/
-.vercel
-
-# TypeScript definition
-next-env.d.ts
-*.tsbuildinfo
-
-# --- API (Hono / Cloudflare Workers) ---
-# Cloudflareのローカル開発用キャッシュ
-.wrangler/
-# Cloudflareのシークレット変数ファイル (絶対にコミットしないこと)
-.dev.vars
-
-# --- Editor / IDE ---
-.vscode/*
-!.vscode/extensions.json
-!.vscode/settings.json
-.idea/
-
-# --- Extension (Vite) ---
-dist/
-.vite/
-*.local
 </file>
 
 <file path="package.json">
@@ -14804,41 +14804,6 @@ export default function QuickLinks({ currentDomain }: QuickLinksProps) {
 }
 </file>
 
-<file path="extension/manifest.json">
-{
-  "manifest_version": 3,
-  "name": "sitecue",
-  "version": "1.0.3",
-  "description": "Leave notes linked to websites in the side panel. A simple way to keep the notes you need exactly where you need them.",
-  "action": {
-    "default_title": "Open sitecue"
-  },
-  "icons": {
-    "16": "sitecue_icon16.png",
-    "32": "sitecue_icon32.png",
-    "48": "sitecue_icon48.png",
-    "128": "sitecue_icon128.png"
-  },
-  "background": {
-    "service_worker": "src/background.ts",
-    "type": "module"
-  },
-  "side_panel": {
-    "default_path": "sidepanel.html"
-  },
-  "permissions": ["sidePanel", "activeTab", "storage", "tabs", "identity"],
-  "host_permissions": ["http://localhost:8787/*", "http://127.0.0.1:54321/*"],
-  "commands": {
-    "_execute_action": {
-      "suggested_key": {
-        "default": "Ctrl+Shift+E",
-        "mac": "Command+Shift+E"
-      }
-    }
-  }
-}
-</file>
-
 <file path="types/supabase.ts">
 export type Json =
     | string
@@ -15222,6 +15187,41 @@ export default function Header({
 }
 </file>
 
+<file path="extension/manifest.json">
+{
+  "manifest_version": 3,
+  "name": "sitecue",
+  "version": "1.0.3",
+  "description": "Leave notes linked to websites in the side panel. A simple way to keep the notes you need exactly where you need them.",
+  "action": {
+    "default_title": "Open sitecue"
+  },
+  "icons": {
+    "16": "sitecue_icon16.png",
+    "32": "sitecue_icon32.png",
+    "48": "sitecue_icon48.png",
+    "128": "sitecue_icon128.png"
+  },
+  "background": {
+    "service_worker": "src/background.ts",
+    "type": "module"
+  },
+  "side_panel": {
+    "default_path": "sidepanel.html"
+  },
+  "permissions": ["sidePanel", "activeTab", "storage", "tabs", "identity"],
+  "host_permissions": ["http://localhost:8787/*", "http://127.0.0.1:54321/*"],
+  "commands": {
+    "_execute_action": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+E",
+        "mac": "Command+Shift+E"
+      }
+    }
+  }
+}
+</file>
+
 <file path="docs/CONTEXT.md">
 # Project: SiteCue
 
@@ -15335,6 +15335,13 @@ Chrome拡張機能として動作し、現在開いているURLやドメイン�
    - バックグラウンドでタブが切り替わった際も正しくコンテキストを追従させる必要がある。
 5. **Development Workflow & Package Management**:
    - ワークスペースの依存関係解決は必ず **Bun** に一任すること。`npm` や `pnpm` が裏で動いてロックファイルが競合しないよう、エディタ側の自動実行コマンド等にも細心の注意を払うこと。
+6. **Release & Post-Release Workflow (公開後の運用ルール)**:
+   - **ブランチ戦略の維持**: 複雑な運用（`develop`ブランチ等）は避け、引き続き `main` ブランチを本番環境（最新状態）とし、機能開発やバグ修正は `feature/*` や `fix/*` ブランチで行うシンプルな GitHub Flow を維持する。
+   - **バージョンタグ管理**: Chromeウェブストアへの審査提出用ZIPファイルを作成・提出したタイミングで、必ず `main` ブランチの該当コミットにバージョンタグ（例: `v1.0.1`）を打つ。これにより、審査中に緊急のバグ修正（hotfix）が発生した際、安全に該当バージョンからブランチを切って対応できるようにする。
+   - **DB/APIの安全な変更 (Additive Changes Only)**:
+     - 審査のタイムラグによる「本番API/DBと公開中拡張機能のバージョン不整合」を防ぐため、DBやAPIの変更は**「追加（Additive）」のみ**とする（Expand & Contract パターン）。
+     - 既存の拡張機能を壊さない（後方互換性を保つ）よう、既存カラムの削除（DROP）や名前変更（RENAME）、既存APIのレスポンス構造の破壊的変更は**厳禁**とする。
+     - 新機能の追加時は、新しいカラム（NULL許可またはデフォルト値あり）の追加や、新しいAPIエンドポイントの追加のみで対応する。
 </file>
 
 <file path="extension/src/SidePanel.tsx">
