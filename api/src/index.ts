@@ -141,6 +141,30 @@ app.put("/notes", async (c) => {
 // ---------------------------------------------------------
 app.post("/ai/weave", async (c) => {
   try {
+    const user = c.get("user");
+    const supabase = createClient(c.env.SUPABASE_URL, c.env.SUPABASE_ANON_KEY, {
+      global: { headers: { Authorization: c.req.header("Authorization")! } },
+    });
+
+    // Check usage limit
+    const { data: profile, error: profileError } = await supabase
+      .from("sitecue_profiles")
+      .select("ai_usage_count")
+      .eq("id", user.id)
+      .single();
+
+    if (profileError) {
+      console.error("Failed to fetch profile:", profileError);
+      return c.json({ error: "Failed to fetch user profile" }, 500);
+    }
+
+    if (profile && profile.ai_usage_count >= 3) {
+      return c.json(
+        { error: "Free tier limit reached. You can only use Weave 3 times." },
+        403
+      );
+    }
+
     const body = await c.req.json();
     const contexts: {
       url: string;
@@ -215,6 +239,17 @@ ${userNotesList}
     const result = await model.generateContent(fullPrompt);
     const response = await result.response;
     const text = response.text();
+
+    // Increment ai_usage_count upon successful generation
+    const currentCount = profile ? profile.ai_usage_count : 0;
+    const { error: updateError } = await supabase
+      .from("sitecue_profiles")
+      .update({ ai_usage_count: currentCount + 1 })
+      .eq("id", user.id);
+
+    if (updateError) {
+      console.error("Failed to update ai_usage_count:", updateError);
+    }
 
     return c.json({ result: text });
   } catch (err: any) {
