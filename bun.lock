@@ -10,6 +10,7 @@
     "api": {
       "name": "sitecue-api",
       "dependencies": {
+        "@google/generative-ai": "^0.24.1",
         "@supabase/supabase-js": "^2.93.1",
         "hono": "^4.11.6",
       },
@@ -174,6 +175,8 @@
     "@eslint/plugin-kit": ["@eslint/plugin-kit@0.4.1", "", { "dependencies": { "@eslint/core": "^0.17.0", "levn": "^0.4.1" } }, ""],
 
     "@fastify/busboy": ["@fastify/busboy@2.1.1", "", {}, ""],
+
+    "@google/generative-ai": ["@google/generative-ai@0.24.1", "", {}, "sha512-MqO+MLfM6kjxcKoy0p1wRzG3b4ZZXtPI+z2IE26UogS2Cm/XHO+7gGRBh6gcJsOiIVoH93UwKvW4HdgiOZCy9Q=="],
 
     "@humanfs/core": ["@humanfs/core@0.19.1", "", {}, ""],
 

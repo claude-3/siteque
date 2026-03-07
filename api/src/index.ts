@@ -1,10 +1,12 @@
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { createClient } from '@supabase/supabase-js'
+import { GoogleGenerativeAI } from '@google/generative-ai'
 
 type Bindings = {
   SUPABASE_URL: string
   SUPABASE_ANON_KEY: string
+  GEMINI_API_KEY: string
 }
 
 type Variables = {
@@ -129,6 +131,60 @@ app.put('/notes', async (c) => {
     return c.json(data[0])
   } catch (err) {
     return c.json({ error: 'Invalid JSON body' }, 400)
+  }
+})
+
+// ---------------------------------------------------------
+// 🧠 AI Weave (Gemini)
+// ---------------------------------------------------------
+app.post('/ai/weave', async (c) => {
+  try {
+    const body = await c.req.json()
+    const contexts: { url: string; content: string }[] = body.contexts
+    const prompt: string = body.prompt
+
+    if (!Array.isArray(contexts) || typeof prompt !== 'string') {
+      return c.json({ error: 'Invalid request body' }, 400)
+    }
+
+    // 各URLからHTMLをフェッチ
+    const fetchedContexts = await Promise.all(
+      contexts.map(async (ctx) => {
+        try {
+          const res = await fetch(ctx.url)
+          if (!res.ok) {
+            return `URL: ${ctx.url}\nNote: ${ctx.content}\nContent: [Failed to fetch content: ${res.status}]`
+          }
+          const html = await res.text()
+          return `URL: ${ctx.url}\nNote: ${ctx.content}\nContent:\n${html}`
+        } catch (error) {
+          return `URL: ${ctx.url}\nNote: ${ctx.content}\nContent: [Failed to fetch content]`
+        }
+      })
+    )
+
+    const fullPrompt = `You are a helpful AI assistant that synthesizes information from various web pages based on user notes and prompts.
+Here are the contexts (Web page URL, user's note, and the page HTML content):
+
+${fetchedContexts.join('\n\n---\n\n')}
+
+User Prompt:
+${prompt}
+
+Please respond in Markdown format.`
+
+    const genAI = new GoogleGenerativeAI(c.env.GEMINI_API_KEY)
+    // 利用可能な最新Flashモデルを指定
+    const model = genAI.getGenerativeModel({ model: 'gemini-3.0-flash' })
+
+    const result = await model.generateContent(fullPrompt)
+    const response = await result.response
+    const text = response.text()
+
+    return c.json({ result: text })
+  } catch (err: any) {
+    console.error('AI Weave Error:', err)
+    return c.json({ error: err.message || 'Internal Server Error' }, 500)
   }
 })
 
