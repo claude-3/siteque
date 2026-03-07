@@ -127,6 +127,25 @@ function NotesUI({
           onToggleFavorite={toggleFavorite}
           onTogglePinned={togglePinned}
         />
+
+        {currentFullUrl && notes.length > 0 && (
+          <div className="pt-2 flex justify-center">
+            <button
+              onClick={() => {
+                const dashboardUrl =
+                  import.meta.env.VITE_WEB_URL || "http://127.0.0.1:3000";
+                const cleanUrl = currentFullUrl.replace(/^https?:\/\//, "");
+                window.open(
+                  `${dashboardUrl}/weave?url=${encodeURIComponent(cleanUrl)}`,
+                  "_blank"
+                );
+              }}
+              className="cursor-pointer flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-neutral-600 bg-white border border-gray-200 rounded-md hover:bg-gray-50 hover:text-neutral-900 transition-colors shadow-sm w-full justify-center"
+            >
+              ✨ 錬成する (Weave Ideas)
+            </button>
+          </div>
+        )}
       </div>
 
       {userStatsLoading ? (
