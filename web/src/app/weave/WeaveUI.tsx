@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { createClient } from '@/utils/supabase/client';
 
 type Note = {
   id: string;
@@ -44,11 +45,20 @@ export default function WeaveUI({ initialNotes }: { initialNotes: Note[] }) {
       }));
 
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8787';
+      const supabase = createClient();
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+
+      if (sessionError || !session?.access_token) {
+        setError('ログインセッションの取得に失敗しました。再度ログインしてください。');
+        return;
+      }
+
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8788';
       const response = await fetch(`${apiUrl}/ai/weave`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
         },
         body: JSON.stringify({ contexts, prompt }),
       });
