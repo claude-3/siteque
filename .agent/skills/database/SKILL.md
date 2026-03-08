@@ -30,6 +30,7 @@ description: Supabase、RLS、各テーブルのスキーマ戦略のルール
 - ユーザーのプランと利用制限を管理するテーブル。
 - `id`: uuid (FK to `auth.users.id`, **ON DELETE CASCADE**) - RLS必須
 - `plan`: `'free'` | `'pro'` (Default: `'free'`)
+- `ai_usage_count`: integer (default 0) - コンテキスト・ウィーバー（AI機能）の月間利用回数を記録する
 - **Access Control & Triggers**:
   - `handle_new_user`: 新規ユーザー登録時に自動で `free` プランのレコードを作成する。
   - `check_note_limit`: `sitecue_notes` への INSERT 時に発火し、ユーザーの `plan` が `'free'` かつメモ件数が200件以上の場合は例外（エラー）を投げて保存をブロックする。
