@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import TextareaAutosize from "react-textarea-autosize";
-import { Send, Loader2, Info, AlertTriangle, Lightbulb } from "lucide-react";
+import { Send, Info, AlertTriangle, Lightbulb } from "lucide-react";
 import type { NoteType, NoteScope } from "../hooks/useNotes";
 
 interface NoteInputProps {
@@ -19,19 +19,21 @@ export default function NoteInput({
     const [selectedScope, setSelectedScope] = useState<NoteScope>("exact");
     const [selectedType, setSelectedType] = useState<NoteType>("info");
     const [newNote, setNewNote] = useState("");
-    const [submitting, setSubmitting] = useState(false);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!newNote.trim()) return;
+        const content = newNote.trim();
+        if (!content) return;
 
-        setSubmitting(true);
-        const success = await onAddNote(newNote, selectedScope, selectedType);
-        if (success) {
-            setNewNote("");
+        // 即座に入力欄をクリアしてUXを向上（オプティミスティック更新）
+        setNewNote("");
+        
+        const success = await onAddNote(content, selectedScope, selectedType);
+        if (!success) {
+            // 失敗時は入力をロールバック
+            setNewNote(content);
         }
-        setSubmitting(false);
     };
 
     return (
@@ -135,16 +137,12 @@ export default function NoteInput({
                             }}
                         />
                         <button
-                            disabled={submitting || !newNote.trim()}
+                            disabled={!newNote.trim()}
                             type="submit"
                             className="cursor-pointer bg-neutral-800 text-white p-2 rounded-md hover:bg-neutral-500 disabled:cursor-not-allowed transition-colors"
                             title="Add Note"
                         >
-                            {submitting ? (
-                                <Loader2 className="w-4 h-4 animate-spin" />
-                            ) : (
-                                <Send className="w-4 h-4" />
-                            )}
+                            <Send className="w-4 h-4" />
                         </button>
                     </>
                 )}

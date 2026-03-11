@@ -47,15 +47,35 @@ export function useNotes(session: Session | null, currentFullUrl: string, setTot
     ) => {
         if (!session?.user?.id || !content.trim()) return false;
 
+        const scopeUrls = getScopeUrls(currentFullUrl);
+        const targetUrlPattern =
+            selectedScope === "domain" ? scopeUrls.domain : selectedScope === "exact" ? scopeUrls.exact : "inbox";
+
+        const newSortOrder = notes.length > 0 
+            ? Math.max(...notes.map(n => n.sort_order || 0)) + 1 
+            : 0;
+
+        const tempId = crypto.randomUUID();
+        const tempNote = {
+            id: tempId,
+            user_id: session.user.id,
+            url_pattern: targetUrlPattern,
+            content,
+            scope: selectedScope,
+            note_type: selectedType,
+            sort_order: newSortOrder,
+            created_at: new Date().toISOString(),
+            is_favorite: false,
+            is_pinned: false,
+            is_resolved: false,
+        } as Note;
+
+        // Optimistic UI update
+        if (selectedScope !== "inbox") {
+            setNotes((prev) => [...prev, tempNote]);
+        }
+
         try {
-            const scopeUrls = getScopeUrls(currentFullUrl);
-            const targetUrlPattern =
-                selectedScope === "domain" ? scopeUrls.domain : selectedScope === "exact" ? scopeUrls.exact : "inbox";
-
-            const newSortOrder = notes.length > 0 
-                ? Math.max(...notes.map(n => n.sort_order || 0)) + 1 
-                : 0;
-
             const payload = {
                 user_id: session.user.id,
                 url_pattern: targetUrlPattern,
@@ -65,9 +85,14 @@ export function useNotes(session: Session | null, currentFullUrl: string, setTot
                 sort_order: newSortOrder,
             };
 
-            const { error } = await supabase.from("sitecue_notes").insert(payload);
+            const { data, error } = await supabase.from("sitecue_notes").insert(payload).select().single();
 
             if (error) throw error;
+
+            // Replace temp note with the actual note from DB
+            if (selectedScope !== "inbox") {
+                setNotes((prev) => prev.map(n => n.id === tempId ? (data as Note) : n));
+            }
 
             if (selectedScope === "inbox") {
                 toast.success("Saved to Inbox");
@@ -78,10 +103,13 @@ export function useNotes(session: Session | null, currentFullUrl: string, setTot
 
             setTotalNoteCount((prev) => prev + 1);
             chrome.runtime.sendMessage({ type: "REFRESH_BADGE" });
-            fetchNotes();
             return true;
         } catch (error) {
             console.error("Failed to create note", error);
+            // Revert optimistic update
+            if (selectedScope !== "inbox") {
+                setNotes((prev) => prev.filter(n => n.id !== tempId));
+            }
             toast.error("Failed to create note");
             return false;
         }
