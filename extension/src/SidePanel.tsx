@@ -79,6 +79,9 @@ function NotesUI({
     "all" | "info" | "alert" | "idea"
   >("all");
   const [showResolved, setShowResolved] = useState(false);
+  const [viewScope, setViewScope] = useState<"exact" | "domain">("exact");
+
+  const filteredNotesByScope = notes.filter((n) => n.scope === viewScope);
 
   return (
     <div className="w-full h-screen bg-gray-50 flex flex-col font-sans">
@@ -113,11 +116,13 @@ function NotesUI({
         setFilterType={setFilterType}
         showResolved={showResolved}
         setShowResolved={setShowResolved}
+        viewScope={viewScope}
+        setViewScope={setViewScope}
       />
 
       <div className="flex-1 overflow-y-auto p-4 space-y-6">
         <NoteList
-          notes={notes}
+          notes={filteredNotesByScope}
           loading={loading}
           filterType={filterType}
           showResolved={showResolved}
