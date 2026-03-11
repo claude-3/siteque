@@ -71,6 +71,7 @@ function NotesUI({
     toggleResolved,
     toggleFavorite,
     togglePinned,
+    swapNoteOrder,
   } = useNotes(session, currentFullUrl, setTotalNoteCount);
 
   // 🔍 フィルタリング用ステート
@@ -126,6 +127,7 @@ function NotesUI({
           onToggleResolved={toggleResolved}
           onToggleFavorite={toggleFavorite}
           onTogglePinned={togglePinned}
+          onSwapOrder={swapNoteOrder}
         />
 
         {currentFullUrl && notes.length > 0 && (

@@ -16,6 +16,8 @@ import {
     Star,
     Edit2,
     Copy,
+    ChevronUp,
+    ChevronDown,
 } from "lucide-react";
 import MarkdownRenderer from "./MarkdownRenderer";
 import type { Note, NoteType } from "../hooks/useNotes";
@@ -29,6 +31,9 @@ interface NoteItemProps {
     onToggleResolved: (id: string, status: boolean | undefined) => Promise<boolean>;
     onToggleFavorite: (note: Note) => Promise<boolean>;
     onTogglePinned: (note: Note) => Promise<boolean>;
+    onSwapOrder: (id: string, direction: 'up' | 'down') => Promise<boolean>;
+    isFirst?: boolean;
+    isLast?: boolean;
 }
 
 export default function NoteItem({
@@ -39,6 +44,9 @@ export default function NoteItem({
     onToggleResolved,
     onToggleFavorite,
     onTogglePinned,
+    onSwapOrder,
+    isFirst = false,
+    isLast = false,
 }: NoteItemProps) {
     const [isEditing, setIsEditing] = useState(false);
     const [editContent, setEditContent] = useState("");
@@ -164,6 +172,24 @@ export default function NoteItem({
                         >
                             {note.is_resolved ? <CheckSquare className="w-5 h-5" /> : <Square className="w-5 h-5" />}
                         </button>
+                        <div className="flex flex-col items-center gap-0 mt-2">
+                            <button
+                                onClick={() => !isFirst && onSwapOrder(note.id, 'up')}
+                                disabled={isFirst}
+                                className={`cursor-pointer transition-colors ${isFirst ? 'text-transparent cursor-default' : 'text-neutral-300 hover:text-neutral-600'}`}
+                                title="Move up"
+                            >
+                                <ChevronUp className="w-4 h-4" />
+                            </button>
+                            <button
+                                onClick={() => !isLast && onSwapOrder(note.id, 'down')}
+                                disabled={isLast}
+                                className={`cursor-pointer transition-colors ${isLast ? 'text-transparent cursor-default' : 'text-neutral-300 hover:text-neutral-600'}`}
+                                title="Move down"
+                            >
+                                <ChevronDown className="w-4 h-4" />
+                            </button>
+                        </div>
                     </div>
 
                     <div className="flex-1 min-w-0">

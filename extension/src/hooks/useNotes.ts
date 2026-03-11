@@ -23,7 +23,9 @@ export function useNotes(session: Session | null, currentFullUrl: string, setTot
                 .select("*")
                 .or(
                     `and(url_pattern.eq."${scopeUrls.domain}",scope.eq.domain),and(url_pattern.eq."${scopeUrls.exact}",scope.eq.exact),is_favorite.eq.true`,
-                );
+                )
+                .order('sort_order', { ascending: true })
+                .order('created_at', { ascending: true });
 
             if (error) throw error;
             setNotes((data as Note[]) || []);
@@ -50,12 +52,17 @@ export function useNotes(session: Session | null, currentFullUrl: string, setTot
             const targetUrlPattern =
                 selectedScope === "domain" ? scopeUrls.domain : selectedScope === "exact" ? scopeUrls.exact : "inbox";
 
+            const newSortOrder = notes.length > 0 
+                ? Math.max(...notes.map(n => n.sort_order || 0)) + 1 
+                : 0;
+
             const payload = {
                 user_id: session.user.id,
                 url_pattern: targetUrlPattern,
                 content,
                 scope: selectedScope,
                 note_type: selectedType,
+                sort_order: newSortOrder,
             };
 
             const { error } = await supabase.from("sitecue_notes").insert(payload);
@@ -202,6 +209,46 @@ export function useNotes(session: Session | null, currentFullUrl: string, setTot
         }
     };
 
+    const swapNoteOrder = async (noteId: string, direction: 'up' | 'down') => {
+        const currentIndex = notes.findIndex(n => n.id === noteId);
+        if (currentIndex === -1) return false;
+
+        const targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+        if (targetIndex < 0 || targetIndex >= notes.length) return false;
+
+        const currentNote = notes[currentIndex];
+        const targetNote = notes[targetIndex];
+
+        // Optimistic UI update
+        const newNotes = [...notes];
+        const tempOrder = currentNote.sort_order;
+        
+        newNotes[currentIndex] = { ...currentNote, sort_order: targetNote.sort_order };
+        newNotes[targetIndex] = { ...targetNote, sort_order: tempOrder };
+        
+        // Sort the array according to the new sort_order so it reflects immediately
+        newNotes.sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0) || new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+        setNotes(newNotes);
+
+        try {
+            // Update both notes in parallel
+            const [res1, res2] = await Promise.all([
+                supabase.from('sitecue_notes').update({ sort_order: targetNote.sort_order }).eq('id', currentNote.id),
+                supabase.from('sitecue_notes').update({ sort_order: tempOrder }).eq('id', targetNote.id)
+            ]);
+
+            if (res1.error) throw res1.error;
+            if (res2.error) throw res2.error;
+            return true;
+        } catch (error) {
+            console.error('Failed to swap notes', error);
+            toast.error('Failed to reorder notes');
+            // Revert changes by refetching
+            fetchNotes();
+            return false;
+        }
+    };
+
     return {
         notes,
         loading,
@@ -212,5 +259,6 @@ export function useNotes(session: Session | null, currentFullUrl: string, setTot
         toggleResolved,
         toggleFavorite,
         togglePinned,
+        swapNoteOrder,
     };
 }

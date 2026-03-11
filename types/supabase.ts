@@ -104,6 +104,7 @@ export type Database = {
           is_resolved: boolean
           note_type: string
           scope: string
+          sort_order: number
           updated_at: string
           url_pattern: string
           user_id: string
@@ -117,6 +118,7 @@ export type Database = {
           is_resolved?: boolean
           note_type?: string
           scope?: string
+          sort_order?: number
           updated_at?: string
           url_pattern: string
           user_id: string
@@ -130,6 +132,7 @@ export type Database = {
           is_resolved?: boolean
           note_type?: string
           scope?: string
+          sort_order?: number
           updated_at?: string
           url_pattern?: string
           user_id?: string

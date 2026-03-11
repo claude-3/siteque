@@ -15,6 +15,7 @@ interface NoteListProps {
     onToggleResolved: (id: string, status: boolean | undefined) => Promise<boolean>;
     onToggleFavorite: (note: Note) => Promise<boolean>;
     onTogglePinned: (note: Note) => Promise<boolean>;
+    onSwapOrder: (id: string, direction: 'up' | 'down') => Promise<boolean>;
 }
 
 export default function NoteList({
@@ -28,6 +29,7 @@ export default function NoteList({
     onToggleResolved,
     onToggleFavorite,
     onTogglePinned,
+    onSwapOrder,
 }: NoteListProps) {
     // 📝 Split notes into Favorites (Global) and Current Page (Local)
     const filteredNotes = notes.filter((note) => {
@@ -45,9 +47,8 @@ export default function NoteList({
 
     const favoriteNotes = filteredNotes
         .filter((n) => n.is_favorite)
-        .sort(
-            (a, b) =>
-                new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+        .sort((a, b) =>
+            (a.sort_order || 0) - (b.sort_order || 0) || new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
         );
 
     const scopeUrls = currentFullUrl ? getScopeUrls(currentFullUrl) : { domain: "", exact: "" };
@@ -64,10 +65,10 @@ export default function NoteList({
             if (a.is_pinned !== b.is_pinned) return a.is_pinned ? -1 : 1;
             // 2. Scope priority (exact > domain)
             if (a.scope !== b.scope) return a.scope === "exact" ? -1 : 1;
-            // 3. Created date (newest first)
-            return (
-                new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-            );
+            // 3. Sort Order
+            if ((a.sort_order || 0) !== (b.sort_order || 0)) return (a.sort_order || 0) - (b.sort_order || 0);
+            // 4. Created date
+            return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
         });
 
     if (loading) {
@@ -94,18 +95,24 @@ export default function NoteList({
         );
     }
 
-    const renderItem = (note: Note) => (
-        <NoteItem
-            key={note.id}
-            note={note}
-            currentFullUrl={currentFullUrl}
-            onUpdate={onUpdate}
-            onDelete={onDelete}
-            onToggleResolved={onToggleResolved}
-            onToggleFavorite={onToggleFavorite}
-            onTogglePinned={onTogglePinned}
-        />
-    );
+    const renderItem = (note: Note, index: number, isFavorite: boolean) => {
+        const total = isFavorite ? favoriteNotes.length : currentScopeNotes.length;
+        return (
+            <NoteItem
+                key={note.id}
+                note={note}
+                currentFullUrl={currentFullUrl}
+                isFirst={index === 0}
+                isLast={index === total - 1}
+                onUpdate={onUpdate}
+                onDelete={onDelete}
+                onToggleResolved={onToggleResolved}
+                onToggleFavorite={onToggleFavorite}
+                onTogglePinned={onTogglePinned}
+                onSwapOrder={onSwapOrder}
+            />
+        );
+    };
 
     return (
         <>
@@ -116,7 +123,7 @@ export default function NoteList({
                         <span>Favorites</span>
                     </div>
                     <div className="space-y-3">
-                        {favoriteNotes.map(renderItem)}
+                        {favoriteNotes.map((note, idx) => renderItem(note, idx, true))}
                     </div>
                     {currentScopeNotes.length > 0 && (
                         <hr className="border-gray-200" />
@@ -133,7 +140,7 @@ export default function NoteList({
                         </div>
                     )}
                     <div className="space-y-3">
-                        {currentScopeNotes.map(renderItem)}
+                        {currentScopeNotes.map((note, idx) => renderItem(note, idx, false))}
                     </div>
                 </div>
             )}
