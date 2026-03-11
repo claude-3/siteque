@@ -1,12 +1,12 @@
 import { useState, useEffect, useCallback } from "react";
 import toast from "react-hot-toast";
-import type { Database } from "../../../types/supabase";
 import { supabase } from "../supabaseClient";
 import { getScopeUrls } from "../utils/url";
 import type { Session } from "@supabase/supabase-js";
+import type { Note, NoteScope } from "../../../types/app";
 
-export type Note = Database["public"]["Tables"]["sitecue_notes"]["Row"];
-export type NoteType = Database["public"]["Tables"]["sitecue_notes"]["Row"]["note_type"];
+export type NoteType = Note["note_type"];
+export type { Note, NoteScope };
 
 export function useNotes(session: Session | null, currentFullUrl: string, setTotalNoteCount: React.Dispatch<React.SetStateAction<number>>) {
     const [notes, setNotes] = useState<Note[]>([]);
@@ -26,7 +26,7 @@ export function useNotes(session: Session | null, currentFullUrl: string, setTot
                 );
 
             if (error) throw error;
-            setNotes(data || []);
+            setNotes((data as Note[]) || []);
         } catch (error) {
             console.error("Failed to fetch notes", error);
         } finally {
@@ -40,7 +40,7 @@ export function useNotes(session: Session | null, currentFullUrl: string, setTot
 
     const addNote = async (
         content: string,
-        selectedScope: "domain" | "exact" | "inbox",
+        selectedScope: NoteScope,
         selectedType: NoteType,
     ) => {
         if (!session?.user?.id || !content.trim()) return false;

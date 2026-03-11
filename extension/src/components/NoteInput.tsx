@@ -1,13 +1,13 @@
 import { useRef, useState } from "react";
 import TextareaAutosize from "react-textarea-autosize";
 import { Send, Loader2, Info, AlertTriangle, Lightbulb } from "lucide-react";
-import type { NoteType } from "../hooks/useNotes";
+import type { NoteType, NoteScope } from "../hooks/useNotes";
 
 interface NoteInputProps {
     userPlan: "free" | "pro";
     totalNoteCount: number;
     maxFreeNotes: number;
-    onAddNote: (content: string, scope: "domain" | "exact" | "inbox", type: NoteType) => Promise<boolean>;
+    onAddNote: (content: string, scope: NoteScope, type: NoteType) => Promise<boolean>;
 }
 
 export default function NoteInput({
@@ -16,7 +16,7 @@ export default function NoteInput({
     maxFreeNotes,
     onAddNote,
 }: NoteInputProps) {
-    const [selectedScope, setSelectedScope] = useState<"domain" | "exact" | "inbox">("exact");
+    const [selectedScope, setSelectedScope] = useState<NoteScope>("exact");
     const [selectedType, setSelectedType] = useState<NoteType>("info");
     const [newNote, setNewNote] = useState("");
     const [submitting, setSubmitting] = useState(false);
