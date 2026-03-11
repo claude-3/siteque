@@ -80,8 +80,19 @@ function NotesUI({
   >("all");
   const [showResolved, setShowResolved] = useState(false);
   const [viewScope, setViewScope] = useState<"exact" | "domain">("exact");
+  const [searchQuery, setSearchQuery] = useState("");
 
-  const filteredNotesByScope = notes.filter((n) => n.scope === viewScope);
+  const filteredNotesByScope = notes.filter((n) => {
+    if (n.scope !== viewScope) return false;
+    
+    if (searchQuery && n.content) {
+      if (!n.content.toLowerCase().includes(searchQuery.toLowerCase())) {
+        return false;
+      }
+    }
+    
+    return true;
+  });
 
   return (
     <div className="w-full h-screen bg-gray-50 flex flex-col font-sans">
@@ -118,6 +129,8 @@ function NotesUI({
         setShowResolved={setShowResolved}
         viewScope={viewScope}
         setViewScope={setViewScope}
+        searchQuery={searchQuery}
+        setSearchQuery={setSearchQuery}
       />
 
       <div className="flex-1 overflow-y-auto p-4 space-y-6">
