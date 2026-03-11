@@ -7,7 +7,7 @@ interface NoteInputProps {
     userPlan: "free" | "pro";
     totalNoteCount: number;
     maxFreeNotes: number;
-    onAddNote: (content: string, scope: "domain" | "exact", type: NoteType) => Promise<boolean>;
+    onAddNote: (content: string, scope: "domain" | "exact" | "inbox", type: NoteType) => Promise<boolean>;
 }
 
 export default function NoteInput({
@@ -16,7 +16,7 @@ export default function NoteInput({
     maxFreeNotes,
     onAddNote,
 }: NoteInputProps) {
-    const [selectedScope, setSelectedScope] = useState<"domain" | "exact">("domain");
+    const [selectedScope, setSelectedScope] = useState<"domain" | "exact" | "inbox">("exact");
     const [selectedType, setSelectedType] = useState<NoteType>("info");
     const [newNote, setNewNote] = useState("");
     const [submitting, setSubmitting] = useState(false);
@@ -42,6 +42,16 @@ export default function NoteInput({
                         <input
                             type="radio"
                             name="scope"
+                            checked={selectedScope === "exact"}
+                            onChange={() => setSelectedScope("exact")}
+                            className="accent-neutral-800 focus:ring-neutral-800"
+                        />
+                        <span>Page</span>
+                    </label>
+                    <label className="flex items-center gap-1.5 cursor-pointer text-neutral-800 hover:text-black">
+                        <input
+                            type="radio"
+                            name="scope"
                             checked={selectedScope === "domain"}
                             onChange={() => setSelectedScope("domain")}
                             className="accent-neutral-800 focus:ring-neutral-800"
@@ -52,11 +62,11 @@ export default function NoteInput({
                         <input
                             type="radio"
                             name="scope"
-                            checked={selectedScope === "exact"}
-                            onChange={() => setSelectedScope("exact")}
+                            checked={selectedScope === "inbox"}
+                            onChange={() => setSelectedScope("inbox")}
                             className="accent-neutral-800 focus:ring-neutral-800"
                         />
-                        <span>This Page</span>
+                        <span>Inbox</span>
                     </label>
                 </div>
 
@@ -114,7 +124,7 @@ export default function NoteInput({
                             ref={textareaRef}
                             value={newNote}
                             onChange={(e) => setNewNote(e.target.value)}
-                            placeholder={`Add a cue to ${selectedScope === "domain" ? "this domain" : "this page"}...`}
+                            placeholder={`Add a cue to ${selectedScope === "inbox" ? "Inbox" : selectedScope === "domain" ? "this domain" : "this page"}...`}
                             className="flex-1 resize-none border-4 border-neutral-800 rounded-md p-2 text-sm focus:outline-none focus:ring-2 focus:ring-black/5 max-h-50"
                             minRows={1}
                             onKeyDown={(e) => {

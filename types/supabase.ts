@@ -103,7 +103,7 @@ export type Database = {
           is_pinned: boolean
           is_resolved: boolean
           note_type: string
-          scope: string
+          scope: "exact" | "domain" | "inbox"
           updated_at: string
           url_pattern: string
           user_id: string
@@ -116,7 +116,7 @@ export type Database = {
           is_pinned?: boolean
           is_resolved?: boolean
           note_type?: string
-          scope?: string
+          scope?: "exact" | "domain" | "inbox"
           updated_at?: string
           url_pattern: string
           user_id: string
@@ -129,7 +129,7 @@ export type Database = {
           is_pinned?: boolean
           is_resolved?: boolean
           note_type?: string
-          scope?: string
+          scope?: "exact" | "domain" | "inbox"
           updated_at?: string
           url_pattern?: string
           user_id?: string

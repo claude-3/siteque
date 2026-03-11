@@ -40,7 +40,7 @@ export function useNotes(session: Session | null, currentFullUrl: string, setTot
 
     const addNote = async (
         content: string,
-        selectedScope: "domain" | "exact",
+        selectedScope: "domain" | "exact" | "inbox",
         selectedType: NoteType,
     ) => {
         if (!session?.user?.id || !content.trim()) return false;
@@ -48,7 +48,7 @@ export function useNotes(session: Session | null, currentFullUrl: string, setTot
         try {
             const scopeUrls = getScopeUrls(currentFullUrl);
             const targetUrlPattern =
-                selectedScope === "domain" ? scopeUrls.domain : scopeUrls.exact;
+                selectedScope === "domain" ? scopeUrls.domain : selectedScope === "exact" ? scopeUrls.exact : "inbox";
 
             const payload = {
                 user_id: session.user.id,
@@ -62,7 +62,13 @@ export function useNotes(session: Session | null, currentFullUrl: string, setTot
 
             if (error) throw error;
 
-            toast.success("Cue added");
+            if (selectedScope === "inbox") {
+                toast.success("Saved to Inbox");
+                setTotalNoteCount((prev) => prev + 1);
+                chrome.runtime.sendMessage({ type: "REFRESH_BADGE" });
+                return true;
+            }
+
             setTotalNoteCount((prev) => prev + 1);
             chrome.runtime.sendMessage({ type: "REFRESH_BADGE" });
             fetchNotes();
