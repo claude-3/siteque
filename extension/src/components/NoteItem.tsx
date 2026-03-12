@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useLayoutEffect } from "react";
 import toast from "react-hot-toast";
 import TextareaAutosize from "react-textarea-autosize";
 import {
@@ -18,10 +18,13 @@ import {
     Copy,
     ChevronUp,
     ChevronDown,
+    ChevronsDownUp,
 } from "lucide-react";
 import MarkdownRenderer from "./MarkdownRenderer";
 import type { Note, NoteType } from "../hooks/useNotes";
 import { getScopeUrls } from "../utils/url";
+
+const COLLAPSE_THRESHOLD = 160; // px
 
 interface NoteItemProps {
     note: Note;
@@ -32,6 +35,7 @@ interface NoteItemProps {
     onToggleFavorite: (note: Note) => Promise<boolean>;
     onTogglePinned: (note: Note) => Promise<boolean>;
     onSwapOrder: (id: string, direction: 'up' | 'down') => Promise<boolean>;
+    onToggleExpansion: (id: string, current: boolean) => Promise<boolean>;
     isFirst?: boolean;
     isLast?: boolean;
 }
@@ -45,6 +49,7 @@ export default function NoteItem({
     onToggleFavorite,
     onTogglePinned,
     onSwapOrder,
+    onToggleExpansion,
     isFirst = false,
     isLast = false,
 }: NoteItemProps) {
@@ -53,6 +58,16 @@ export default function NoteItem({
     const [editType, setEditType] = useState<NoteType>("info");
     const [updating, setUpdating] = useState(false);
     const [copiedNoteId, setCopiedNoteId] = useState<string | null>(null);
+    const [isOverflowing, setIsOverflowing] = useState(false);
+
+    const contentRef = useRef<HTMLDivElement>(null);
+
+    // Measure actual content height to decide whether to show the toggle
+    useLayoutEffect(() => {
+        if (contentRef.current) {
+            setIsOverflowing(contentRef.current.scrollHeight > COLLAPSE_THRESHOLD);
+        }
+    }, [note.content]);
 
     const startEditing = () => {
         setIsEditing(true);
@@ -79,7 +94,7 @@ export default function NoteItem({
     const handleCopyNote = () => {
         navigator.clipboard.writeText(note.content);
         setCopiedNoteId(note.id);
-        toast("Copied to clipboard"); // Will use toast from useNotes or let it be handled, or import toast here. Let's import toast.
+        toast("Copied to clipboard");
         setTimeout(() => setCopiedNoteId(null), 2000);
     };
 
@@ -93,6 +108,9 @@ export default function NoteItem({
     }
 
     const resolvedClasses = note.is_resolved ? "opacity-60 grayscale-[0.5]" : "";
+
+    // Content is visually collapsed when: content overflows threshold AND note is not expanded
+    const isCollapsed = isOverflowing && !note.is_expanded;
 
     return (
         <div className={`bg-white p-4 rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-all group relative ${resolvedClasses}`}>
@@ -210,8 +228,28 @@ export default function NoteItem({
                             </button>
                         </div>
 
-                        <div className={`text-sm pr-8 mb-2 ${note.is_resolved ? "line-through text-neutral-500" : "text-neutral-800"}`}>
-                            <MarkdownRenderer content={note.content} />
+                        {/* Content area with collapse/expand */}
+                        <div
+                            className={`relative ${isCollapsed ? "max-h-40 overflow-hidden" : ""}`}
+                        >
+                            <div
+                                ref={contentRef}
+                                className={`text-sm pr-8 mb-2 ${note.is_resolved ? "line-through text-neutral-500" : "text-neutral-800"}`}
+                            >
+                                <MarkdownRenderer content={note.content} />
+                            </div>
+
+                            {/* Gradient overlay + "Read more" — only when collapsed */}
+                            {isCollapsed && (
+                                <div className="absolute bottom-0 left-0 right-0 h-12 bg-linear-to-t from-white to-transparent flex items-end justify-center pb-1">
+                                    <button
+                                        onClick={() => onToggleExpansion(note.id, note.is_expanded ?? false)}
+                                        className="cursor-pointer text-[11px] text-neutral-400 hover:text-neutral-700 transition-colors font-medium"
+                                    >
+                                        Read more
+                                    </button>
+                                </div>
+                            )}
                         </div>
 
                         <div className="text-[10px] text-neutral-400 flex items-center gap-2">
@@ -238,6 +276,16 @@ export default function NoteItem({
                     </div>
 
                     <div className="absolute bottom-3 right-3 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-white/90 pl-2 rounded-l-md">
+                        {/* "Show less" — only when expanded and content actually overflows */}
+                        {note.is_expanded && isOverflowing && (
+                            <button
+                                onClick={() => onToggleExpansion(note.id, note.is_expanded ?? false)}
+                                className="cursor-pointer text-neutral-300 hover:text-neutral-800 transition-colors"
+                                title="Show less"
+                            >
+                                <ChevronsDownUp className="w-3.5 h-3.5" />
+                            </button>
+                        )}
                         <button
                             onClick={handleCopyNote}
                             className="cursor-pointer text-neutral-300 hover:text-neutral-800 transition-colors"

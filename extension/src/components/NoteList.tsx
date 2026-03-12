@@ -16,6 +16,7 @@ interface NoteListProps {
     onToggleFavorite: (note: Note) => Promise<boolean>;
     onTogglePinned: (note: Note) => Promise<boolean>;
     onSwapOrder: (id: string, direction: 'up' | 'down') => Promise<boolean>;
+    onToggleExpansion: (id: string, current: boolean) => Promise<boolean>;
 }
 
 export default function NoteList({
@@ -30,6 +31,7 @@ export default function NoteList({
     onToggleFavorite,
     onTogglePinned,
     onSwapOrder,
+    onToggleExpansion,
 }: NoteListProps) {
     // 📝 Split notes into Favorites (Global) and Current Page (Local)
     const filteredNotes = notes.filter((note) => {
@@ -110,6 +112,7 @@ export default function NoteList({
                 onToggleFavorite={onToggleFavorite}
                 onTogglePinned={onTogglePinned}
                 onSwapOrder={onSwapOrder}
+                onToggleExpansion={onToggleExpansion}
             />
         );
     };
