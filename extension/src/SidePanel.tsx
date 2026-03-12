@@ -72,6 +72,7 @@ function NotesUI({
     toggleFavorite,
     togglePinned,
     swapNoteOrder,
+    toggleNoteExpansion,
   } = useNotes(session, currentFullUrl, setTotalNoteCount);
 
   // 🔍 フィルタリング用ステート
@@ -147,6 +148,7 @@ function NotesUI({
           onToggleFavorite={toggleFavorite}
           onTogglePinned={togglePinned}
           onSwapOrder={swapNoteOrder}
+          onToggleExpansion={toggleNoteExpansion}
         />
 
         {currentFullUrl && notes.length > 0 && (

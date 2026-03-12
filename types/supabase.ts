@@ -99,6 +99,7 @@ export type Database = {
           content: string
           created_at: string
           id: string
+          is_expanded: boolean
           is_favorite: boolean
           is_pinned: boolean
           is_resolved: boolean
@@ -113,6 +114,7 @@ export type Database = {
           content: string
           created_at?: string
           id?: string
+          is_expanded?: boolean
           is_favorite?: boolean
           is_pinned?: boolean
           is_resolved?: boolean
@@ -127,6 +129,7 @@ export type Database = {
           content?: string
           created_at?: string
           id?: string
+          is_expanded?: boolean
           is_favorite?: boolean
           is_pinned?: boolean
           is_resolved?: boolean

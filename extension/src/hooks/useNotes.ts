@@ -65,6 +65,7 @@ export function useNotes(session: Session | null, currentFullUrl: string, setTot
             note_type: selectedType,
             sort_order: newSortOrder,
             created_at: new Date().toISOString(),
+            is_expanded: false,
             is_favorite: false,
             is_pinned: false,
             is_resolved: false,
@@ -277,6 +278,30 @@ export function useNotes(session: Session | null, currentFullUrl: string, setTot
         }
     };
 
+    const toggleNoteExpansion = async (id: string, currentValue: boolean) => {
+        const nextValue = !currentValue;
+        // Optimistic update
+        setNotes((prevNotes) =>
+            prevNotes.map((n) => (n.id === id ? { ...n, is_expanded: nextValue } : n)),
+        );
+        try {
+            const { error } = await supabase
+                .from('sitecue_notes')
+                .update({ is_expanded: nextValue })
+                .eq('id', id);
+            if (error) throw error;
+            return true;
+        } catch (error) {
+            console.error('Failed to toggle expansion', error);
+            // Revert on error
+            setNotes((prevNotes) =>
+                prevNotes.map((n) => (n.id === id ? { ...n, is_expanded: currentValue } : n)),
+            );
+            toast.error('Failed to update note');
+            return false;
+        }
+    };
+
     return {
         notes,
         loading,
@@ -288,5 +313,6 @@ export function useNotes(session: Session | null, currentFullUrl: string, setTot
         toggleFavorite,
         togglePinned,
         swapNoteOrder,
+        toggleNoteExpansion,
     };
 }
