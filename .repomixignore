@@ -1,0 +1,23 @@
+# 1. 自動生成される型定義ファイル・ビルドキャッシュ
+api/worker-configuration.d.ts
+web/next-env.d.ts
+web/tsconfig.tsbuildinfo
+
+# 2. パッケージマネージャーのロックファイル
+bun.lock
+
+# 3. メディアファイル（画像・アイコン）
+extension/public/*.png
+web/public/*.svg
+
+# 4. repomixの出力結果自体（重複読み込み防止）
+repomix-*.xml
+
+# 5. 一時的なスクラッチパッド・不要ファイル
+supabase/snippets/
+
+# 6. DBのマイグレーションファイル(履歴)
+supabase/migrations/
+
+# 7. 不明なシンボリックリンク（再帰的な読み込みループ防止）
+web/web
