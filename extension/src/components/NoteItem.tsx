@@ -21,7 +21,7 @@ import {
     ChevronsDownUp,
 } from "lucide-react";
 import MarkdownRenderer from "./MarkdownRenderer";
-import type { Note, NoteType } from "../hooks/useNotes";
+import type { Note, NoteType, NoteScope } from "../hooks/useNotes";
 import { getScopeUrls } from "../utils/url";
 
 const COLLAPSE_THRESHOLD = 160; // px
@@ -29,7 +29,7 @@ const COLLAPSE_THRESHOLD = 160; // px
 interface NoteItemProps {
     note: Note;
     currentFullUrl: string;
-    onUpdate: (id: string, content: string, type: NoteType) => Promise<boolean>;
+    onUpdate: (id: string, content: string, type: NoteType, scope: NoteScope) => Promise<boolean>;
     onDelete: (id: string) => Promise<boolean>;
     onToggleResolved: (id: string, status: boolean | undefined) => Promise<boolean>;
     onToggleFavorite: (note: Note) => Promise<boolean>;
@@ -56,6 +56,7 @@ export default function NoteItem({
     const [isEditing, setIsEditing] = useState(false);
     const [editContent, setEditContent] = useState("");
     const [editType, setEditType] = useState<NoteType>("info");
+    const [editScope, setEditScope] = useState<NoteScope>(note.scope);
     const [updating, setUpdating] = useState(false);
     const [copiedNoteId, setCopiedNoteId] = useState<string | null>(null);
     const [isOverflowing, setIsOverflowing] = useState(false);
@@ -73,18 +74,20 @@ export default function NoteItem({
         setIsEditing(true);
         setEditContent(note.content);
         setEditType(note.note_type || "info");
+        setEditScope(note.scope);
     };
 
     const cancelEditing = () => {
         setIsEditing(false);
         setEditContent("");
         setEditType("info");
+        setEditScope(note.scope);
     };
 
     const handleUpdate = async () => {
         if (!editContent.trim()) return;
         setUpdating(true);
-        const success = await onUpdate(note.id, editContent, editType);
+        const success = await onUpdate(note.id, editContent, editType, editScope);
         if (success) {
             setIsEditing(false);
         }
@@ -116,8 +119,41 @@ export default function NoteItem({
         <div className={`bg-white p-4 rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-all group relative ${resolvedClasses}`}>
             {isEditing ? (
                 <div className="space-y-2">
-                    <div className="flex bg-gray-50 p-0.5 rounded-md w-fit mb-2">
-                        <button
+                    <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-4 text-xs">
+                            <label className="flex items-center gap-1.5 cursor-pointer text-neutral-800 hover:text-black">
+                                <input
+                                    type="radio"
+                                    name={`scope-${note.id}`}
+                                    checked={editScope === "exact"}
+                                    onChange={() => setEditScope("exact")}
+                                    className="accent-neutral-800 focus:ring-neutral-800"
+                                />
+                                <span>Page</span>
+                            </label>
+                            <label className="flex items-center gap-1.5 cursor-pointer text-neutral-800 hover:text-black">
+                                <input
+                                    type="radio"
+                                    name={`scope-${note.id}`}
+                                    checked={editScope === "domain"}
+                                    onChange={() => setEditScope("domain")}
+                                    className="accent-neutral-800 focus:ring-neutral-800"
+                                />
+                                <span>Domain</span>
+                            </label>
+                            <label className="flex items-center gap-1.5 cursor-pointer text-neutral-800 hover:text-black">
+                                <input
+                                    type="radio"
+                                    name={`scope-${note.id}`}
+                                    checked={editScope === "inbox"}
+                                    onChange={() => setEditScope("inbox")}
+                                    className="accent-neutral-800 focus:ring-neutral-800"
+                                />
+                                <span>Inbox</span>
+                            </label>
+                        </div>
+                        <div className="flex bg-gray-50 p-0.5 rounded-md w-fit">
+                            <button
                             type="button"
                             onClick={() => setEditType("info")}
                             className={`cursor-pointer p-1 rounded ${editType === "info" ? "bg-blue-400 shadow-sm text-white" : "text-gray-400 hover:text-blue-500"}`}
@@ -141,6 +177,7 @@ export default function NoteItem({
                         >
                             <Lightbulb className="w-3.5 h-3.5" />
                         </button>
+                    </div>
                     </div>
                     <TextareaAutosize
                         value={editContent}
@@ -254,13 +291,13 @@ export default function NoteItem({
 
                         <div className="text-[10px] text-neutral-400 flex items-center gap-2">
                             <span className={`px-1.5 py-0.5 rounded border ${note.scope === "exact" ? "bg-white border-neutral-200 text-neutral-600" : "bg-neutral-50 border-neutral-200 text-neutral-500"}`}>
-                                {note.scope === "exact" ? "Page" : "Domain"}
+                                {note.scope === "exact" ? "Page" : note.scope === "inbox" ? "Inbox" : "Domain"}
                             </span>
                             <span className="opacity-70">
                                 {new Date(note.created_at).toLocaleDateString()}
                             </span>
 
-                            {note.url_pattern !== (note.scope === "domain" ? getScopeUrls(currentFullUrl).domain : getScopeUrls(currentFullUrl).exact) && (
+                            {note.scope !== "inbox" && note.url_pattern !== (note.scope === "domain" ? getScopeUrls(currentFullUrl).domain : getScopeUrls(currentFullUrl).exact) && (
                                 <a
                                     href={`https://${note.url_pattern}`}
                                     target="_blank"

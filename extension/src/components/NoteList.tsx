@@ -1,6 +1,6 @@
 
 import { Loader2, Ghost } from "lucide-react";
-import type { Note, NoteType } from "../hooks/useNotes";
+import type { Note, NoteType, NoteScope } from "../hooks/useNotes";
 import NoteItem from "./NoteItem";
 import { getScopeUrls } from "../utils/url";
 
@@ -11,7 +11,7 @@ interface NoteListProps {
     showResolved: boolean;
     currentFullUrl: string;
     viewScope: "exact" | "domain" | "inbox";
-    onUpdate: (id: string, content: string, type: NoteType) => Promise<boolean>;
+    onUpdate: (id: string, content: string, type: NoteType, scope: NoteScope) => Promise<boolean>;
     onDelete: (id: string) => Promise<boolean>;
     onToggleResolved: (id: string, status: boolean | undefined) => Promise<boolean>;
     onToggleFavorite: (note: Note) => Promise<boolean>;

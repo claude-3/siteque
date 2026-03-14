@@ -129,24 +129,48 @@ export function useNotes(
     id: string,
     editContent: string,
     editType: NoteType,
+    editScope?: NoteScope,
   ) => {
     if (!editContent.trim()) return false;
     try {
+      let targetUrlPattern: string | undefined;
+      const updatePayload: any = {
+        content: editContent,
+        note_type: editType,
+      };
+
+      if (editScope) {
+        updatePayload.scope = editScope;
+        const scopeUrls = getScopeUrls(currentFullUrl);
+        targetUrlPattern =
+          editScope === "domain"
+            ? scopeUrls.domain
+            : editScope === "exact"
+              ? scopeUrls.exact
+              : "inbox";
+        updatePayload.url_pattern = targetUrlPattern;
+      }
+
       const { error } = await supabase
         .from("sitecue_notes")
-        .update({
-          content: editContent,
-          note_type: editType,
-        })
+        .update(updatePayload)
         .eq("id", id);
 
       if (error) throw error;
 
       setNotes((prevNotes) =>
         prevNotes.map((n) =>
-          n.id === id ? { ...n, content: editContent, note_type: editType } : n,
+          n.id === id
+            ? {
+                ...n,
+                content: editContent,
+                note_type: editType,
+                ...(editScope ? { scope: editScope, url_pattern: targetUrlPattern! } : {}),
+              }
+            : n,
         ),
       );
+      chrome.runtime.sendMessage({ type: "REFRESH_BADGE" });
       toast.success("Cue updated");
       return true;
     } catch (error) {
